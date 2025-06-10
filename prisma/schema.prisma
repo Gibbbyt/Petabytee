@@ -1,0 +1,676 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User models
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  password        String
+  name            String?
+  role            UserRole         @default(CLIENT)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  // Relations
+  sessions        Session[]
+  orders          Order[]
+  pcConfigs       PCConfig[]
+  ps5Configs      PS5Config[]
+  repairs         Repair[]
+  supportTickets  SupportTicket[]
+  notifications   Notification[]
+  reviews         Review[]
+  forumPosts      ForumPost[]
+  forumComments   ForumComment[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum UserRole {
+  CLIENT
+  ADMIN
+  TECHNICIAN
+  SUPPORT
+}
+
+// Product models
+model Product {
+  id              String            @id @default(cuid())
+  name            String
+  nameAl          String            // Albanian name
+  description     String            @db.Text
+  descriptionAl   String            @db.Text // Albanian description
+  category        ProductCategory
+  price           Float
+  image           String?
+  stock           Int               @default(0)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  orderItems      OrderItem[]
+  pcComponents    PCComponent[]
+  ps5Components   PS5Component[]
+  reviews         Review[]
+}
+
+enum ProductCategory {
+  PC_COMPONENT
+  PS5_ACCESSORY
+  GIFT_CARD
+  ACCOUNT
+  SERVICE
+  OTHER
+}
+
+// PC Configurator
+model PCBuild {
+  id              String            @id @default(cuid())
+  name            String
+  nameAl          String
+  description     String            @db.Text
+  descriptionAl   String            @db.Text
+  basePrice       Float
+  image           String?
+  isActive        Boolean           @default(true)
+  order           Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  components      PCBuildComponent[]
+  configs         PCConfig[]
+}
+
+model PCBuildComponent {
+  id              String            @id @default(cuid())
+  buildId         String
+  componentType   PCComponentType
+  productId       String?
+  isRequired      Boolean           @default(true)
+  
+  build           PCBuild           @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  product         Product?          @relation(fields: [productId], references: [id])
+}
+
+model PCComponent {
+  id              String            @id @default(cuid())
+  productId       String
+  componentType   PCComponentType
+  specifications  Json
+  
+  product         Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  configItems     PCConfigItem[]
+}
+
+enum PCComponentType {
+  CPU
+  GPU
+  MOTHERBOARD
+  RAM
+  STORAGE
+  PSU
+  CASE
+  COOLING
+  OTHER
+}
+
+model PCConfig {
+  id              String            @id @default(cuid())
+  userId          String?
+  buildId         String?
+  name            String
+  totalPrice      Float
+  status          ConfigStatus      @default(DRAFT)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  user            User?             @relation(fields: [userId], references: [id])
+  build           PCBuild?          @relation(fields: [buildId], references: [id])
+  items           PCConfigItem[]
+  order           Order?
+}
+
+model PCConfigItem {
+  id              String            @id @default(cuid())
+  configId        String
+  componentId     String
+  quantity        Int               @default(1)
+  price           Float
+  
+  config          PCConfig          @relation(fields: [configId], references: [id], onDelete: Cascade)
+  component       PCComponent       @relation(fields: [componentId], references: [id])
+}
+
+// PS5 Controller Configurator
+model PS5Component {
+  id              String            @id @default(cuid())
+  productId       String
+  componentType   PS5ComponentType
+  colorHex        String?
+  
+  product         Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  configItems     PS5ConfigItem[]
+}
+
+enum PS5ComponentType {
+  SHELL
+  BUTTONS
+  TRIGGERS
+  THUMBSTICKS
+  DPAD
+  LED
+  OTHER
+}
+
+model PS5Config {
+  id              String            @id @default(cuid())
+  userId          String?
+  name            String
+  totalPrice      Float
+  status          ConfigStatus      @default(DRAFT)
+  previewImage    String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  user            User?             @relation(fields: [userId], references: [id])
+  items           PS5ConfigItem[]
+  order           Order?
+}
+
+model PS5ConfigItem {
+  id              String            @id @default(cuid())
+  configId        String
+  componentId     String
+  customColor     String?
+  price           Float
+  
+  config          PS5Config         @relation(fields: [configId], references: [id], onDelete: Cascade)
+  component       PS5Component      @relation(fields: [componentId], references: [id])
+}
+
+enum ConfigStatus {
+  DRAFT
+  SAVED
+  ORDERED
+}
+
+// Orders
+model Order {
+  id              String            @id @default(cuid())
+  orderNumber     String            @unique
+  userId          String
+  status          OrderStatus       @default(PENDING)
+  subtotal        Float
+  tax             Float
+  shipping        Float
+  total           Float
+  paymentMethod   PaymentMethod?
+  shippingAddress Json?
+  notes           String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  pcConfig        PCConfig?         @relation(fields: [pcConfigId], references: [id])
+  pcConfigId      String?           @unique
+  ps5Config       PS5Config?        @relation(fields: [ps5ConfigId], references: [id])
+  ps5ConfigId     String?           @unique
+  timeline        Timeline[]
+  invoice         Invoice?
+}
+
+model OrderItem {
+  id              String            @id @default(cuid())
+  orderId         String
+  productId       String
+  quantity        Int
+  price           Float
+  
+  order           Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product           @relation(fields: [productId], references: [id])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  PAYPAL
+}
+
+// Repairs
+model Repair {
+  id              String            @id @default(cuid())
+  repairNumber    String            @unique
+  userId          String
+  deviceType      String
+  deviceModel     String
+  issueDescription String           @db.Text
+  status          RepairStatus      @default(RECEIVED)
+  estimatedCost   Float?
+  finalCost       Float?
+  isEasyMailIn    Boolean           @default(false)
+  trackingNumber  String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  completedAt     DateTime?
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id])
+  timeline        Timeline[]
+  invoice         Invoice?
+}
+
+enum RepairStatus {
+  PENDING_SHIPMENT
+  SHIPPED_TO_US
+  RECEIVED
+  DIAGNOSING
+  WAITING_APPROVAL
+  REPAIRING
+  COMPLETED
+  SHIPPED_BACK
+  DELIVERED
+  CANCELLED
+}
+
+// Support & Services
+model SupportTicket {
+  id              String            @id @default(cuid())
+  ticketNumber    String            @unique
+  userId          String
+  subject         String
+  description     String            @db.Text
+  category        SupportCategory
+  priority        Priority          @default(MEDIUM)
+  status          TicketStatus      @default(OPEN)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  resolvedAt      DateTime?
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id])
+  messages        TicketMessage[]
+}
+
+model TicketMessage {
+  id              String            @id @default(cuid())
+  ticketId        String
+  message         String            @db.Text
+  isAdminReply    Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  
+  ticket          SupportTicket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+enum SupportCategory {
+  TECHNICAL
+  BILLING
+  GENERAL
+  COMPLAINT
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_RESPONSE
+  RESOLVED
+  CLOSED
+}
+
+// Timeline
+model Timeline {
+  id              String            @id @default(cuid())
+  entityType      TimelineEntity
+  entityId        String
+  title           String
+  titleAl         String
+  description     String            @db.Text
+  descriptionAl   String            @db.Text
+  icon            String?
+  createdAt       DateTime          @default(now())
+  
+  // Relations
+  order           Order?            @relation(fields: [entityId], references: [id])
+  repair          Repair?           @relation(fields: [entityId], references: [id])
+}
+
+enum TimelineEntity {
+  ORDER
+  REPAIR
+}
+
+// Content Management
+model BlogPost {
+  id              String            @id @default(cuid())
+  slug            String            @unique
+  title           String
+  titleAl         String
+  excerpt         String            @db.Text
+  excerptAl       String            @db.Text
+  content         String            @db.Text
+  contentAl       String            @db.Text
+  featuredImage   String?
+  author          String
+  tags            String[]
+  isPublished     Boolean           @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // SEO
+  metaTitle       String?
+  metaTitleAl     String?
+  metaDescription String?
+  metaDescriptionAl String?
+}
+
+model News {
+  id              String            @id @default(cuid())
+  slug            String            @unique
+  title           String
+  titleAl         String
+  content         String            @db.Text
+  contentAl       String            @db.Text
+  featuredImage   String?
+  isPublished     Boolean           @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model Tutorial {
+  id              String            @id @default(cuid())
+  slug            String            @unique
+  title           String
+  titleAl         String
+  description     String            @db.Text
+  descriptionAl   String            @db.Text
+  videoUrl        String?
+  content         String            @db.Text
+  contentAl       String            @db.Text
+  category        TutorialCategory
+  difficulty      Difficulty
+  isPublished     Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+enum TutorialCategory {
+  REPAIR
+  OPTIMIZATION
+  DISASSEMBLY
+  TIPS_TRICKS
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model Review {
+  id              String            @id @default(cuid())
+  userId          String
+  productId       String
+  rating          Int
+  title           String
+  comment         String            @db.Text
+  isVerified      Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id])
+  product         Product           @relation(fields: [productId], references: [id])
+}
+
+// Forum
+model ForumCategory {
+  id              String            @id @default(cuid())
+  name            String
+  nameAl          String
+  description     String
+  descriptionAl   String
+  slug            String            @unique
+  order           Int               @default(0)
+  createdAt       DateTime          @default(now())
+  
+  // Relations
+  posts           ForumPost[]
+}
+
+model ForumPost {
+  id              String            @id @default(cuid())
+  userId          String
+  categoryId      String
+  title           String
+  content         String            @db.Text
+  isPinned        Boolean           @default(false)
+  isLocked        Boolean           @default(false)
+  viewCount       Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id])
+  category        ForumCategory     @relation(fields: [categoryId], references: [id])
+  comments        ForumComment[]
+}
+
+model ForumComment {
+  id              String            @id @default(cuid())
+  postId          String
+  userId          String
+  content         String            @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  post            ForumPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id])
+}
+
+// Events
+model Event {
+  id              String            @id @default(cuid())
+  title           String
+  titleAl         String
+  description     String            @db.Text
+  descriptionAl   String            @db.Text
+  startDate       DateTime
+  endDate         DateTime
+  location        String
+  image           String?
+  isPublished     Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+// Services
+model Service {
+  id              String            @id @default(cuid())
+  name            String
+  nameAl          String
+  description     String            @db.Text
+  descriptionAl   String            @db.Text
+  price           Float?
+  priceType       PriceType
+  category        ServiceCategory
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+enum PriceType {
+  FIXED
+  HOURLY
+  QUOTE
+}
+
+enum ServiceCategory {
+  PC_OPTIMIZATION
+  GAMING_CENTER
+  AI_DEVELOPMENT
+  PRINTING_3D
+  SUPPORT_247
+}
+
+// Invoices
+model Invoice {
+  id              String            @id @default(cuid())
+  invoiceNumber   String            @unique
+  orderId         String?           @unique
+  repairId        String?           @unique
+  amount          Float
+  tax             Float
+  total           Float
+  status          InvoiceStatus     @default(DRAFT)
+  dueDate         DateTime
+  paidAt          DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  // Relations
+  order           Order?            @relation(fields: [orderId], references: [id])
+  repair          Repair?           @relation(fields: [repairId], references: [id])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// Notifications
+model Notification {
+  id              String            @id @default(cuid())
+  userId          String
+  title           String
+  message         String            @db.Text
+  type            NotificationType
+  isRead          Boolean           @default(false)
+  data            Json?
+  createdAt       DateTime          @default(now())
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id])
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  REPAIR_UPDATE
+  SUPPORT_REPLY
+  SYSTEM
+  PROMOTION
+}
+
+// Team
+model TeamMember {
+  id              String            @id @default(cuid())
+  name            String
+  nameAl          String
+  position        String
+  positionAl      String
+  bio             String            @db.Text
+  bioAl           String            @db.Text
+  image           String?
+  order           Int               @default(0)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+// Analytics
+model Analytics {
+  id              String            @id @default(cuid())
+  date            DateTime          @default(now())
+  metric          String
+  value           Float
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+}
+
+// Gift Cards
+model GiftCard {
+  id              String            @id @default(cuid())
+  code            String            @unique
+  type            GiftCardType
+  value           Float
+  balance         Float
+  isActive        Boolean           @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime          @default(now())
+  usedAt          DateTime?
+}
+
+enum GiftCardType {
+  STEAM
+  PSN
+  STORE_CREDIT
+}
+
+// Job Applications
+model JobApplication {
+  id              String            @id @default(cuid())
+  position        String
+  name            String
+  email           String
+  phone           String
+  resume          String?
+  coverLetter     String            @db.Text
+  status          ApplicationStatus @default(NEW)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+enum ApplicationStatus {
+  NEW
+  REVIEWING
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+}
