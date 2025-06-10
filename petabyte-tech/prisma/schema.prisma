@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -57,8 +57,8 @@ model Product {
   id              String            @id @default(cuid())
   name            String
   nameAl          String            // Albanian name
-  description     String            @db.Text
-  descriptionAl   String            @db.Text // Albanian description
+  description     String            
+  descriptionAl   String             // Albanian description
   category        ProductCategory
   price           Float
   image           String?
@@ -89,8 +89,8 @@ model PCBuild {
   id              String            @id @default(cuid())
   name            String
   nameAl          String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String            
+  descriptionAl   String            
   basePrice       Float
   image           String?
   isActive        Boolean           @default(true)
@@ -230,7 +230,7 @@ model Order {
   total           Float
   paymentMethod   PaymentMethod?
   shippingAddress Json?
-  notes           String?           @db.Text
+  notes           String?           
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
@@ -280,7 +280,7 @@ model Repair {
   userId          String
   deviceType      String
   deviceModel     String
-  issueDescription String           @db.Text
+  issueDescription String           
   status          RepairStatus      @default(RECEIVED)
   estimatedCost   Float?
   finalCost       Float?
@@ -315,7 +315,7 @@ model SupportTicket {
   ticketNumber    String            @unique
   userId          String
   subject         String
-  description     String            @db.Text
+  description     String            
   category        SupportCategory
   priority        Priority          @default(MEDIUM)
   status          TicketStatus      @default(OPEN)
@@ -331,7 +331,7 @@ model SupportTicket {
 model TicketMessage {
   id              String            @id @default(cuid())
   ticketId        String
-  message         String            @db.Text
+  message         String            
   isAdminReply    Boolean           @default(false)
   createdAt       DateTime          @default(now())
   
@@ -367,14 +367,14 @@ model Timeline {
   entityId        String
   title           String
   titleAl         String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String            
+  descriptionAl   String            
   icon            String?
   createdAt       DateTime          @default(now())
   
   // Relations - Fixed with unique constraint names
-  order           Order?            @relation(fields: [entityId], references: [id], map: "Timeline_order_entityId_fkey")
-  repair          Repair?           @relation(fields: [entityId], references: [id], map: "Timeline_repair_entityId_fkey")
+  order           Order?            @relation(fields: [entityId], references: [id])
+  repair          Repair?           @relation(fields: [entityId], references: [id])
 }
 
 enum TimelineEntity {
@@ -388,13 +388,13 @@ model BlogPost {
   slug            String            @unique
   title           String
   titleAl         String
-  excerpt         String            @db.Text
-  excerptAl       String            @db.Text
-  content         String            @db.Text
-  contentAl       String            @db.Text
+  excerpt         String            
+  excerptAl       String            
+  content         String            
+  contentAl       String            
   featuredImage   String?
   author          String
-  tags            String[]
+  tags            String
   isPublished     Boolean           @default(false)
   publishedAt     DateTime?
   createdAt       DateTime          @default(now())
@@ -412,8 +412,8 @@ model News {
   slug            String            @unique
   title           String
   titleAl         String
-  content         String            @db.Text
-  contentAl       String            @db.Text
+  content         String            
+  contentAl       String            
   featuredImage   String?
   isPublished     Boolean           @default(false)
   publishedAt     DateTime?
@@ -426,11 +426,11 @@ model Tutorial {
   slug            String            @unique
   title           String
   titleAl         String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String            
+  descriptionAl   String            
   videoUrl        String?
-  content         String            @db.Text
-  contentAl       String            @db.Text
+  content         String            
+  contentAl       String            
   category        TutorialCategory
   difficulty      Difficulty
   isPublished     Boolean           @default(false)
@@ -457,7 +457,7 @@ model Review {
   productId       String
   rating          Int
   title           String
-  comment         String            @db.Text
+  comment         String            
   isVerified      Boolean           @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -487,7 +487,7 @@ model ForumPost {
   userId          String
   categoryId      String
   title           String
-  content         String            @db.Text
+  content         String            
   isPinned        Boolean           @default(false)
   isLocked        Boolean           @default(false)
   viewCount       Int               @default(0)
@@ -504,7 +504,7 @@ model ForumComment {
   id              String            @id @default(cuid())
   postId          String
   userId          String
-  content         String            @db.Text
+  content         String            
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
@@ -518,8 +518,8 @@ model Event {
   id              String            @id @default(cuid())
   title           String
   titleAl         String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String            
+  descriptionAl   String            
   startDate       DateTime
   endDate         DateTime
   location        String
@@ -534,8 +534,8 @@ model Service {
   id              String            @id @default(cuid())
   name            String
   nameAl          String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String            
+  descriptionAl   String            
   price           Float?
   priceType       PriceType
   category        ServiceCategory
@@ -591,7 +591,7 @@ model Notification {
   id              String            @id @default(cuid())
   userId          String
   title           String
-  message         String            @db.Text
+  message         String            
   type            NotificationType
   isRead          Boolean           @default(false)
   data            Json?
@@ -616,8 +616,8 @@ model TeamMember {
   nameAl          String
   position        String
   positionAl      String
-  bio             String            @db.Text
-  bioAl           String            @db.Text
+  bio             String            
+  bioAl           String            
   image           String?
   order           Int               @default(0)
   isActive        Boolean           @default(true)
@@ -662,7 +662,7 @@ model JobApplication {
   email           String
   phone           String
   resume          String?
-  coverLetter     String            @db.Text
+  coverLetter     String            
   status          ApplicationStatus @default(NEW)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
