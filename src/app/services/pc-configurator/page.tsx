@@ -50,42 +50,149 @@ interface PCBuild {
 export default function PCConfiguratorPage() {
   const { t, language } = useLanguage();
   const [currentStep, setCurrentStep] = useState(0);
-  const [selectedBuild, setSelectedBuild] = useState<string | null>(null);
+  const [selectedBuild, setSelectedBuild] = useState<string>('');
   const [selectedComponents, setSelectedComponents] = useState<{[key: string]: PCComponent}>({});
   const [totalPrice, setTotalPrice] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [components, setComponents] = useState<{[key: string]: PCComponent[]}>({});
+  const [loadingComponents, setLoadingComponents] = useState(false);
 
-  const pcBuilds: PCBuild[] = [
+  const steps = ['Zgjedh Build', 'CPU', 'GPU', 'RAM', 'Storage', 'Motherboard', 'PSU', 'Case', 'Përfundo'];
+
+  const buildTemplates = [
     {
+      id: 'gaming-beast-pro',
       name: 'Gaming Beast Pro',
       nameEn: 'Gaming Beast Pro',
-      description: 'Për lojtarët më të kërkueshëm - ruan 144FPS në Valorant, CS2, Fortnite',
-      descriptionEn: 'For the most demanding gamers - maintains 144FPS in Valorant, CS2, Fortnite',
-      targetGames: ['Valorant', 'CS2', 'Fortnite', 'Cyberpunk 2077', 'Apex Legends'],
-      minPrice: 1200,
-      maxPrice: 2500,
-      color: 'from-red-500 to-red-700'
+      description: 'Performanca maksimale për gaming në 4K dhe streaming',
+      descriptionEn: 'Maximum performance for 4K gaming and streaming',
+      basePrice: 2499.99,
+      targetGames: ['Cyberpunk 2077', 'Call of Duty', 'Valorant', 'Fortnite'],
+      performance: '4K Ultra',
+      icon: '🦁',
+      color: 'from-red-600 to-orange-500'
     },
     {
+      id: 'balanced-performance',
       name: 'Balanced Performance',
-      nameEn: 'Balanced Performance',
-      description: 'Ekuilibër perfekt midis performancës dhe çmimit - 90-120FPS',
-      descriptionEn: 'Perfect balance between performance and price - 90-120FPS',
-      targetGames: ['Valorant', 'League of Legends', 'Minecraft', 'Rocket League'],
-      minPrice: 800,
-      maxPrice: 1500,
-      color: 'from-blue-500 to-blue-700'
+      nameEn: 'Balanced Performance', 
+      description: 'Raport i shkëlqyer çmim-performancë për 1440p gaming',
+      descriptionEn: 'Excellent price-performance ratio for 1440p gaming',
+      basePrice: 1299.99,
+      targetGames: ['Valorant', 'CS2', 'League of Legends', 'Overwatch'],
+      performance: '1440p High',
+      icon: '⚖️',
+      color: 'from-blue-600 to-purple-500'
     },
     {
+      id: 'budget-champion',
       name: 'Budget Champion',
       nameEn: 'Budget Champion',
-      description: 'Çmim i arsyeshëm, performance i mirë - 60-90FPS në shumicën e lojërave',
-      descriptionEn: 'Reasonable price, good performance - 60-90FPS in most games',
-      targetGames: ['Valorant', 'CS2', 'League of Legends', 'Dota 2'],
-      minPrice: 500,
-      maxPrice: 900,
-      color: 'from-green-500 to-green-700'
+      description: 'Gaming i përballueshëm për 1080p me FPS të lartë',
+      descriptionEn: 'Affordable gaming for 1080p with high FPS',
+      basePrice: 699.99,
+      targetGames: ['Valorant', 'CS2', 'Rocket League', 'Minecraft'],
+      performance: '1080p High',
+      icon: '🏆',
+      color: 'from-green-600 to-teal-500'
     }
   ];
+
+  // Fetch components from API
+  useEffect(() => {
+    const fetchComponents = async () => {
+      if (!selectedBuild) return;
+      
+      setLoadingComponents(true);
+      try {
+        const categories = ['CPU', 'GPU', 'RAM', 'STORAGE', 'MOTHERBOARD', 'PSU', 'CASE'];
+        const componentPromises = categories.map(async (category) => {
+          const response = await fetch(`/api/pc-components?category=${category}&buildType=${selectedBuild}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${category} components`);
+          }
+          const data = await response.json();
+          return { category: category.toLowerCase(), components: data.components };
+        });
+
+        const results = await Promise.all(componentPromises);
+        const componentsData: {[key: string]: PCComponent[]} = {};
+        
+        results.forEach(({ category, components }) => {
+          componentsData[category] = components;
+        });
+
+        setComponents(componentsData);
+      } catch (error) {
+        console.error('Error fetching components:', error);
+        
+        // Fallback to mock data if API fails
+        setComponents({
+          cpu: [
+            {
+              id: 'cpu1',
+              name: 'AMD Ryzen 7 7700X',
+              nameEn: 'AMD Ryzen 7 7700X',
+              description: 'Procesor i fuqishëm për gaming dhe multitasking',
+              descriptionEn: 'Powerful processor for gaming and multitasking',
+              price: 399.99,
+              specs: ['8 Cores / 16 Threads', '4.5-5.4 GHz', '32MB Cache', 'AM5 Socket'],
+              specsEn: ['8 Cores / 16 Threads', '4.5-5.4 GHz', '32MB Cache', 'AM5 Socket'],
+              compatibility: ['AM5'],
+              inStock: true
+            },
+            {
+              id: 'cpu2',
+              name: 'Intel Core i7-13700K',
+              nameEn: 'Intel Core i7-13700K',
+              description: 'Performance i lartë për gaming dhe punë',
+              descriptionEn: 'High performance for gaming and work',
+              price: 419.99,
+              specs: ['16 Cores / 24 Threads', '3.4-5.4 GHz', '30MB Cache', 'LGA1700'],
+              specsEn: ['16 Cores / 24 Threads', '3.4-5.4 GHz', '30MB Cache', 'LGA1700'],
+              compatibility: ['LGA1700'],
+              inStock: true
+            }
+          ],
+          gpu: [
+            {
+              id: 'gpu1',
+              name: 'NVIDIA RTX 4070',
+              nameEn: 'NVIDIA RTX 4070',
+              description: 'Gaming në 1440p me ray tracing',
+              descriptionEn: '1440p gaming with ray tracing',
+              price: 599.99,
+              specs: ['12GB GDDR6X', 'DLSS 3.0', 'Ray Tracing', '200W TDP'],
+              specsEn: ['12GB GDDR6X', 'DLSS 3.0', 'Ray Tracing', '200W TDP'],
+              compatibility: ['PCIe 4.0'],
+              inStock: true
+            },
+            {
+              id: 'gpu2',
+              name: 'AMD RX 7700 XT',
+              nameEn: 'AMD RX 7700 XT',
+              description: 'Performance i shkëlqyer për çmimin',
+              descriptionEn: 'Excellent performance for the price',
+              price: 449.99,
+              specs: ['12GB GDDR6', 'FSR 3.0', 'Ray Tracing', '245W TDP'],
+              specsEn: ['12GB GDDR6', 'FSR 3.0', 'Ray Tracing', '245W TDP'],
+              compatibility: ['PCIe 4.0'],
+              inStock: true
+            }
+          ]
+        });
+      } finally {
+        setLoadingComponents(false);
+      }
+    };
+
+    fetchComponents();
+  }, [selectedBuild]);
+
+  useEffect(() => {
+    const total = Object.values(selectedComponents).reduce((sum, component) => sum + component.price, 0);
+    setTotalPrice(total);
+  }, [selectedComponents]);
 
   const componentCategories = [
     {
@@ -146,73 +253,6 @@ export default function PCConfiguratorPage() {
     }
   ];
 
-  // Mock component data
-  const mockComponents: {[key: string]: PCComponent[]} = {
-    cpu: [
-      {
-        id: 'cpu1',
-        name: 'AMD Ryzen 7 7700X',
-        nameEn: 'AMD Ryzen 7 7700X',
-        description: 'Procesor i fuqishëm për gaming dhe multitasking',
-        descriptionEn: 'Powerful processor for gaming and multitasking',
-        price: 399.99,
-        specs: ['8 Cores / 16 Threads', '4.5-5.4 GHz', '32MB Cache', 'AM5 Socket'],
-        specsEn: ['8 Cores / 16 Threads', '4.5-5.4 GHz', '32MB Cache', 'AM5 Socket'],
-        compatibility: ['AM5'],
-        inStock: true
-      },
-      {
-        id: 'cpu2',
-        name: 'Intel Core i7-13700K',
-        nameEn: 'Intel Core i7-13700K',
-        description: 'Performance i lartë për gaming dhe punë',
-        descriptionEn: 'High performance for gaming and work',
-        price: 419.99,
-        specs: ['16 Cores / 24 Threads', '3.4-5.4 GHz', '30MB Cache', 'LGA1700'],
-        specsEn: ['16 Cores / 24 Threads', '3.4-5.4 GHz', '30MB Cache', 'LGA1700'],
-        compatibility: ['LGA1700'],
-        inStock: true
-      }
-    ],
-    gpu: [
-      {
-        id: 'gpu1',
-        name: 'NVIDIA RTX 4070',
-        nameEn: 'NVIDIA RTX 4070',
-        description: 'Gaming në 1440p me ray tracing',
-        descriptionEn: '1440p gaming with ray tracing',
-        price: 599.99,
-        specs: ['12GB GDDR6X', 'DLSS 3.0', 'Ray Tracing', '200W TDP'],
-        specsEn: ['12GB GDDR6X', 'DLSS 3.0', 'Ray Tracing', '200W TDP'],
-        compatibility: ['PCIe 4.0'],
-        inStock: true
-      },
-      {
-        id: 'gpu2',
-        name: 'AMD RX 7700 XT',
-        nameEn: 'AMD RX 7700 XT',
-        description: 'Performance i shkëlqyer për çmimin',
-        descriptionEn: 'Excellent performance for the price',
-        price: 449.99,
-        specs: ['12GB GDDR6', 'FSR 3.0', 'Ray Tracing', '245W TDP'],
-        specsEn: ['12GB GDDR6', 'FSR 3.0', 'Ray Tracing', '245W TDP'],
-        compatibility: ['PCIe 4.0'],
-        inStock: true
-      }
-    ]
-  };
-
-  useEffect(() => {
-    const total = Object.values(selectedComponents).reduce((sum, component) => sum + component.price, 0);
-    setTotalPrice(total);
-  }, [selectedComponents]);
-
-  const steps = [
-    { id: 'build', title: 'Zgjidh Build-in', titleEn: 'Choose Build' },
-    { id: 'components', title: 'Konfigurim Komponentësh', titleEn: 'Configure Components' },
-    { id: 'review', title: 'Rishikim dhe Porosi', titleEn: 'Review & Order' }
-  ];
-
   const selectComponent = (category: string, component: PCComponent) => {
     setSelectedComponents(prev => ({
       ...prev,
@@ -255,23 +295,25 @@ export default function PCConfiguratorPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {pcBuilds.map((build, index) => (
+        {buildTemplates.map((build, index) => (
           <Card 
             key={index}
             className={`cursor-pointer transition-all hover:shadow-lg ${
-              selectedBuild === build.name ? 'ring-2 ring-brand-purple shadow-lg' : ''
+              selectedBuild === build.id ? 'ring-2 ring-brand-purple shadow-lg' : ''
             }`}
-            onClick={() => setSelectedBuild(build.name)}
+            onClick={() => setSelectedBuild(build.id)}
           >
             <CardHeader>
               <div className={`w-full h-32 bg-gradient-to-r ${build.color} rounded-lg flex items-center justify-center mb-4`}>
-                <Monitor className="w-16 h-16 text-white" />
+                <span className="text-2xl font-bold text-white">
+                  {build.icon}
+                </span>
               </div>
-              <CardTitle className="text-center">{getBuildName(build)}</CardTitle>
+              <CardTitle className="text-center">{getBuildName(buildTemplates.find(b => b.id === selectedBuild) as PCBuild)}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 text-sm mb-4 text-center">
-                {getBuildDescription(build)}
+                {getBuildDescription(buildTemplates.find(b => b.id === selectedBuild) as PCBuild)}
               </p>
               
               <div className="space-y-2 mb-4">
@@ -279,13 +321,7 @@ export default function PCConfiguratorPage() {
                   <span className="text-gray-500">
                     {language === 'sq' ? 'Çmim nga:' : 'Price from:'}
                   </span>
-                  <span className="font-semibold">€{build.minPrice}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    {language === 'sq' ? 'Deri në:' : 'Up to:'}
-                  </span>
-                  <span className="font-semibold">€{build.maxPrice}</span>
+                  <span className="font-semibold">€{build.basePrice}</span>
                 </div>
               </div>
 
@@ -307,7 +343,7 @@ export default function PCConfiguratorPage() {
                 </div>
               </div>
 
-              {selectedBuild === build.name && (
+              {selectedBuild === build.id && (
                 <div className="flex items-center justify-center text-green-600">
                   <Check className="w-4 h-4 mr-1" />
                   <span className="text-sm font-medium">
@@ -399,7 +435,7 @@ export default function PCConfiguratorPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mockComponents.cpu?.map((component) => (
+                {components.cpu?.map((component) => (
                   <div 
                     key={component.id}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -641,7 +677,7 @@ export default function PCConfiguratorPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center">
+              <div key={step} className="flex items-center">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
                   index <= currentStep 
                     ? 'border-brand-purple bg-brand-purple text-white' 
@@ -656,7 +692,7 @@ export default function PCConfiguratorPage() {
                 <span className={`ml-2 text-sm font-medium ${
                   index <= currentStep ? 'text-brand-purple' : 'text-gray-500'
                 }`}>
-                  {language === 'sq' ? step.title : step.titleEn}
+                  {step}
                 </span>
                 {index < steps.length - 1 && (
                   <div className={`w-12 h-0.5 mx-4 ${

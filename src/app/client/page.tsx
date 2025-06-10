@@ -18,55 +18,112 @@ import {
   Calendar
 } from 'lucide-react';
 
+interface ClientStats {
+  totalOrders: number;
+  activeRepairs: number;
+  pcConfigs: number;
+  ps5Configs: number;
+}
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  total: number;
+  createdAt: Date;
+  items: string[];
+}
+
+interface Repair {
+  id: string;
+  repairNumber: string;
+  deviceType: string;
+  status: string;
+  createdAt: Date;
+}
+
 export default function ClientDashboard() {
   const { t } = useLanguage();
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<ClientStats>({
     totalOrders: 0,
     activeRepairs: 0,
     pcConfigs: 0,
     ps5Configs: 0,
   });
 
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [activeRepairs, setActiveRepairs] = useState([]);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [activeRepairs, setActiveRepairs] = useState<Repair[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for demonstration
   useEffect(() => {
-    setStats({
-      totalOrders: 12,
-      activeRepairs: 2,
-      pcConfigs: 3,
-      ps5Configs: 1,
-    });
+    const fetchClientStats = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/client/stats');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch client statistics');
+        }
 
-    setRecentOrders([
-      {
-        id: '1',
-        orderNumber: 'PB-2024-001',
-        status: 'PROCESSING',
-        total: 899.99,
-        createdAt: new Date('2024-01-15'),
-        items: ['Gaming PC Build - Valorant Pro']
-      },
-      {
-        id: '2',
-        orderNumber: 'PB-2024-002',
-        status: 'DELIVERED',
-        total: 149.99,
-        createdAt: new Date('2024-01-10'),
-        items: ['PS5 Controller - Custom Red']
-      }
-    ]);
+        const data = await response.json();
+        
+        setStats(data.stats);
+        setRecentOrders(data.recentOrders.map((order: any) => ({
+          ...order,
+          createdAt: new Date(order.createdAt)
+        })));
+        setActiveRepairs(data.activeRepairs.map((repair: any) => ({
+          ...repair,
+          createdAt: new Date(repair.createdAt)
+        })));
+        
+      } catch (err) {
+        console.error('Error fetching client stats:', err);
+        setError('Failed to load dashboard data');
+        
+        // Fallback to mock data if API fails
+        setStats({
+          totalOrders: 12,
+          activeRepairs: 2,
+          pcConfigs: 3,
+          ps5Configs: 1,
+        });
 
-    setActiveRepairs([
-      {
-        id: '1',
-        repairNumber: 'PR-2024-001',
-        deviceType: 'Laptop',
-        status: 'DIAGNOSING',
-        createdAt: new Date('2024-01-12')
+        setRecentOrders([
+          {
+            id: '1',
+            orderNumber: 'PB-2024-001',
+            status: 'PROCESSING',
+            total: 899.99,
+            createdAt: new Date('2024-01-15'),
+            items: ['Gaming PC Build - Valorant Pro']
+          },
+          {
+            id: '2',
+            orderNumber: 'PB-2024-002',
+            status: 'DELIVERED',
+            total: 149.99,
+            createdAt: new Date('2024-01-10'),
+            items: ['PS5 Controller - Custom Red']
+          }
+        ]);
+
+        setActiveRepairs([
+          {
+            id: '1',
+            repairNumber: 'PR-2024-001',
+            deviceType: 'Laptop',
+            status: 'DIAGNOSING',
+            createdAt: new Date('2024-01-12')
+          }
+        ]);
+      } finally {
+        setLoading(false);
       }
-    ]);
+    };
+
+    fetchClientStats();
   }, []);
 
   const quickActions = [

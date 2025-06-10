@@ -22,8 +22,65 @@ import {
   RefreshCcw
 } from 'lucide-react';
 
+interface AdminStats {
+  revenue: {
+    today: number;
+    thisMonth: number;
+    lastMonth: number;
+    growth: number;
+  };
+  orders: {
+    total: number;
+    pending: number;
+    processing: number;
+    completed: number;
+    cancelled: number;
+  };
+  repairs: {
+    total: number;
+    active: number;
+    completed: number;
+    easyMailIn: number;
+  };
+  customers: {
+    total: number;
+    new: number;
+    active: number;
+  };
+  inventory: {
+    lowStock: number;
+    outOfStock: number;
+  };
+}
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  customer: string;
+  total: number;
+  status: string;
+  createdAt: Date;
+}
+
+interface Repair {
+  id: string;
+  repairNumber: string;
+  customer: string;
+  device: string;
+  status: string;
+  isEasyMailIn: boolean;
+  createdAt: Date;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  message: string;
+  time: string;
+}
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<AdminStats>({
     revenue: {
       today: 0,
       thisMonth: 0,
@@ -54,111 +111,145 @@ export default function AdminDashboard() {
     }
   });
 
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [activeRepairs, setActiveRepairs] = useState([]);
-  const [notifications, setNotifications] = useState([]);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [activeRepairs, setActiveRepairs] = useState<Repair[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Mock data for demonstration
-    setStats({
-      revenue: {
-        today: 2453.67,
-        thisMonth: 45230.89,
-        lastMonth: 38450.23,
-        growth: 17.6
-      },
-      orders: {
-        total: 234,
-        pending: 12,
-        processing: 8,
-        completed: 208,
-        cancelled: 6
-      },
-      repairs: {
-        total: 89,
-        active: 15,
-        completed: 68,
-        easyMailIn: 6
-      },
-      customers: {
-        total: 1249,
-        new: 23,
-        active: 156
-      },
-      inventory: {
-        lowStock: 8,
-        outOfStock: 3
-      }
-    });
+    const fetchAdminStats = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/admin/stats');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch admin statistics');
+        }
 
-    setRecentOrders([
-      {
-        id: '1',
-        orderNumber: 'PB-2024-045',
-        customer: 'Arben Krasniqi',
-        total: 899.99,
-        status: 'PROCESSING',
-        createdAt: new Date('2024-01-15T10:30:00')
-      },
-      {
-        id: '2',
-        orderNumber: 'PB-2024-044',
-        customer: 'Liridona Hasani',
-        total: 299.99,
-        status: 'PENDING',
-        createdAt: new Date('2024-01-15T09:15:00')
-      },
-      {
-        id: '3',
-        orderNumber: 'PB-2024-043',
-        customer: 'Mentor Gashi',
-        total: 1299.99,
-        status: 'COMPLETED',
-        createdAt: new Date('2024-01-14T16:45:00')
-      }
-    ]);
+        const data = await response.json();
+        
+        setStats(data.stats);
+        setRecentOrders(data.recentOrders.map((order: any) => ({
+          ...order,
+          createdAt: new Date(order.createdAt)
+        })));
+        setActiveRepairs(data.activeRepairs.map((repair: any) => ({
+          ...repair,
+          createdAt: new Date(repair.createdAt)
+        })));
+        setNotifications(data.notifications);
+        
+      } catch (err) {
+        console.error('Error fetching admin stats:', err);
+        setError('Failed to load dashboard data');
+        
+        // Fallback to mock data if API fails
+        setStats({
+          revenue: {
+            today: 2453.67,
+            thisMonth: 45230.89,
+            lastMonth: 38450.23,
+            growth: 17.6
+          },
+          orders: {
+            total: 234,
+            pending: 12,
+            processing: 8,
+            completed: 208,
+            cancelled: 6
+          },
+          repairs: {
+            total: 89,
+            active: 15,
+            completed: 68,
+            easyMailIn: 6
+          },
+          customers: {
+            total: 1249,
+            new: 23,
+            active: 156
+          },
+          inventory: {
+            lowStock: 8,
+            outOfStock: 3
+          }
+        });
 
-    setActiveRepairs([
-      {
-        id: '1',
-        repairNumber: 'PR-2024-012',
-        customer: 'Valdrin Berisha',
-        device: 'Gaming Laptop',
-        status: 'DIAGNOSING',
-        isEasyMailIn: true,
-        createdAt: new Date('2024-01-12T14:20:00')
-      },
-      {
-        id: '2',
-        repairNumber: 'PR-2024-011',
-        customer: 'Arta Shala',
-        device: 'Desktop PC',
-        status: 'REPAIRING',
-        isEasyMailIn: false,
-        createdAt: new Date('2024-01-10T11:30:00')
-      }
-    ]);
+        setRecentOrders([
+          {
+            id: '1',
+            orderNumber: 'PB-2024-045',
+            customer: 'Arben Krasniqi',
+            total: 899.99,
+            status: 'PROCESSING',
+            createdAt: new Date('2024-01-15T10:30:00')
+          },
+          {
+            id: '2',
+            orderNumber: 'PB-2024-044',
+            customer: 'Liridona Hasani',
+            total: 299.99,
+            status: 'PENDING',
+            createdAt: new Date('2024-01-15T09:15:00')
+          },
+          {
+            id: '3',
+            orderNumber: 'PB-2024-043',
+            customer: 'Mentor Gashi',
+            total: 1299.99,
+            status: 'COMPLETED',
+            createdAt: new Date('2024-01-14T16:45:00')
+          }
+        ]);
 
-    setNotifications([
-      {
-        id: '1',
-        type: 'low_stock',
-        message: '8 produkte kanë stok të ulët',
-        time: '5 minuta më parë'
-      },
-      {
-        id: '2',
-        type: 'new_order',
-        message: 'Porosi e re #PB-2024-045',
-        time: '15 minuta më parë'
-      },
-      {
-        id: '3',
-        type: 'repair_update',
-        message: 'Riparim PR-2024-010 përfunduar',
-        time: '1 orë më parë'
+        setActiveRepairs([
+          {
+            id: '1',
+            repairNumber: 'PR-2024-012',
+            customer: 'Valdrin Berisha',
+            device: 'Gaming Laptop',
+            status: 'DIAGNOSING',
+            isEasyMailIn: true,
+            createdAt: new Date('2024-01-12T14:20:00')
+          },
+          {
+            id: '2',
+            repairNumber: 'PR-2024-011',
+            customer: 'Arta Shala',
+            device: 'Desktop PC',
+            status: 'REPAIRING',
+            isEasyMailIn: false,
+            createdAt: new Date('2024-01-10T11:30:00')
+          }
+        ]);
+
+        setNotifications([
+          {
+            id: '1',
+            type: 'low_stock',
+            message: '8 produkte kanë stok të ulët',
+            time: '5 minuta më parë'
+          },
+          {
+            id: '2',
+            type: 'new_order',
+            message: 'Porosi e re #PB-2024-045',
+            time: '15 minuta më parë'
+          },
+          {
+            id: '3',
+            type: 'repair_update',
+            message: 'Riparim PR-2024-010 përfunduar',
+            time: '1 orë më parë'
+          }
+        ]);
+      } finally {
+        setLoading(false);
       }
-    ]);
+    };
+
+    fetchAdminStats();
   }, []);
 
   const quickActions = [
