@@ -81,43 +81,6 @@ export default function ClientDashboard() {
       } catch (err) {
         console.error('Error fetching client stats:', err);
         setError('Failed to load dashboard data');
-        
-        // Fallback to mock data if API fails
-        setStats({
-          totalOrders: 12,
-          activeRepairs: 2,
-          pcConfigs: 3,
-          ps5Configs: 1,
-        });
-
-        setRecentOrders([
-          {
-            id: '1',
-            orderNumber: 'PB-2024-001',
-            status: 'PROCESSING',
-            total: 899.99,
-            createdAt: new Date('2024-01-15'),
-            items: ['Gaming PC Build - Valorant Pro']
-          },
-          {
-            id: '2',
-            orderNumber: 'PB-2024-002',
-            status: 'DELIVERED',
-            total: 149.99,
-            createdAt: new Date('2024-01-10'),
-            items: ['PS5 Controller - Custom Red']
-          }
-        ]);
-
-        setActiveRepairs([
-          {
-            id: '1',
-            repairNumber: 'PR-2024-001',
-            deviceType: 'Laptop',
-            status: 'DIAGNOSING',
-            createdAt: new Date('2024-01-12')
-          }
-        ]);
       } finally {
         setLoading(false);
       }

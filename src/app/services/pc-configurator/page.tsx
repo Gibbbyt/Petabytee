@@ -125,62 +125,8 @@ export default function PCConfiguratorPage() {
         setComponents(componentsData);
       } catch (error) {
         console.error('Error fetching components:', error);
-        
-        // Fallback to mock data if API fails
-        setComponents({
-          cpu: [
-            {
-              id: 'cpu1',
-              name: 'AMD Ryzen 7 7700X',
-              nameEn: 'AMD Ryzen 7 7700X',
-              description: 'Procesor i fuqishëm për gaming dhe multitasking',
-              descriptionEn: 'Powerful processor for gaming and multitasking',
-              price: 399.99,
-              specs: ['8 Cores / 16 Threads', '4.5-5.4 GHz', '32MB Cache', 'AM5 Socket'],
-              specsEn: ['8 Cores / 16 Threads', '4.5-5.4 GHz', '32MB Cache', 'AM5 Socket'],
-              compatibility: ['AM5'],
-              inStock: true
-            },
-            {
-              id: 'cpu2',
-              name: 'Intel Core i7-13700K',
-              nameEn: 'Intel Core i7-13700K',
-              description: 'Performance i lartë për gaming dhe punë',
-              descriptionEn: 'High performance for gaming and work',
-              price: 419.99,
-              specs: ['16 Cores / 24 Threads', '3.4-5.4 GHz', '30MB Cache', 'LGA1700'],
-              specsEn: ['16 Cores / 24 Threads', '3.4-5.4 GHz', '30MB Cache', 'LGA1700'],
-              compatibility: ['LGA1700'],
-              inStock: true
-            }
-          ],
-          gpu: [
-            {
-              id: 'gpu1',
-              name: 'NVIDIA RTX 4070',
-              nameEn: 'NVIDIA RTX 4070',
-              description: 'Gaming në 1440p me ray tracing',
-              descriptionEn: '1440p gaming with ray tracing',
-              price: 599.99,
-              specs: ['12GB GDDR6X', 'DLSS 3.0', 'Ray Tracing', '200W TDP'],
-              specsEn: ['12GB GDDR6X', 'DLSS 3.0', 'Ray Tracing', '200W TDP'],
-              compatibility: ['PCIe 4.0'],
-              inStock: true
-            },
-            {
-              id: 'gpu2',
-              name: 'AMD RX 7700 XT',
-              nameEn: 'AMD RX 7700 XT',
-              description: 'Performance i shkëlqyer për çmimin',
-              descriptionEn: 'Excellent performance for the price',
-              price: 449.99,
-              specs: ['12GB GDDR6', 'FSR 3.0', 'Ray Tracing', '245W TDP'],
-              specsEn: ['12GB GDDR6', 'FSR 3.0', 'Ray Tracing', '245W TDP'],
-              compatibility: ['PCIe 4.0'],
-              inStock: true
-            }
-          ]
-        });
+        // If API fails, show empty components to force user to contact support
+        setComponents({});
       } finally {
         setLoadingComponents(false);
       }

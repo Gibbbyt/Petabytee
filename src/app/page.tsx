@@ -7,6 +7,7 @@ import { GlowCard, Card, CardHeader, CardTitle, CardDescription, CardContent } f
 import { useLanguage } from '@/hooks/useLanguage';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { 
   Monitor, 
   Gamepad2, 
@@ -26,6 +27,34 @@ import {
 
 export default function HomePage() {
   const { t } = useLanguage();
+  const [stats, setStats] = useState([
+    { value: '0', label: 'PC Konfigurime' },
+    { value: '0', label: 'Klientë të Kënaqur' },
+    { value: '24/7', label: 'Mbështetje' },
+    { value: '5★', label: 'Vlerësim' },
+  ]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/public-stats');
+        if (response.ok) {
+          const data = await response.json();
+          setStats([
+            { value: `${data.pcBuilds}+`, label: 'PC Konfigurime' },
+            { value: `${data.customers}+`, label: 'Klientë të Kënaqur' },
+            { value: '24/7', label: 'Mbështetje' },
+            { value: `${data.rating}★`, label: 'Vlerësim' },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        // Keep default stats if API fails
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   const services = [
     {
@@ -91,13 +120,6 @@ export default function HomePage() {
       description: t.store.accounts.description,
       href: '/store/accounts',
     },
-  ];
-
-  const stats = [
-    { value: '500+', label: 'PC Konfigurime' },
-    { value: '1000+', label: 'Klientë të Kënaqur' },
-    { value: '24/7', label: 'Mbështetje' },
-    { value: '5★', label: 'Vlerësim' },
   ];
 
   return (
