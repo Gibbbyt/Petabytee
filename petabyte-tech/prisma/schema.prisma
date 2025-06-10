@@ -72,6 +72,7 @@ model Product {
   pcComponents    PCComponent[]
   ps5Components   PS5Component[]
   reviews         Review[]
+  buildComponents PCBuildComponent[]
 }
 
 enum ProductCategory {

@@ -49,8 +49,8 @@
     "@types/node": "^20",
     "@types/node-telegram-bot-api": "^0.64.9",
     "@types/nodemailer": "^6.4.17",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^19.1.7",
+    "@types/react-dom": "^19.1.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
