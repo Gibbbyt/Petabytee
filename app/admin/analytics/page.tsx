@@ -79,10 +79,10 @@ const analyticsData = {
     averageRepairTime: '4.5 days',
     customerSatisfaction: 4.7,
     mostCommonIssues: [
-      { issue: 'Stick Drift', count: 34, percentage: 38 },
-      { issue: 'Overheating', count: 18, percentage: 20 },
-      { issue: 'Screen Issues', count: 15, percentage: 17 },
-      { issue: 'Power Issues', count: 12, percentage: 13 },
+      { issue: 'Performance Issues', count: 34, percentage: 38 },
+      { issue: 'Hardware Problems', count: 18, percentage: 20 },
+      { issue: 'Software Issues', count: 15, percentage: 17 },
+      { issue: 'Gaming Issues', count: 12, percentage: 13 },
       { issue: 'Other', count: 10, percentage: 12 }
     ]
   }
@@ -312,8 +312,10 @@ function TimePeriodSelector({ selectedPeriod, onPeriodChange }) {
 }
 
 export default function AnalyticsPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState('30d')
-  const [activeTab, setActiveTab] = useState('overview')
+  const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loading, setLoading] = useState(true);
   
   const tabs = [
     { id: 'overview', name: 'Overview', icon: '📊' },
@@ -321,8 +323,85 @@ export default function AnalyticsPage() {
     { id: 'customers', name: 'Customers', icon: '👥' },
     { id: 'products', name: 'Products', icon: '📦' },
     { id: 'repairs', name: 'Repairs', icon: '🔧' }
-  ]
-  
+  ];
+
+  // Fetch analytics data from API
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/admin/analytics?period=${selectedPeriod}`);
+        const data = await response.json();
+        setAnalyticsData(data);
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+        // Keep fallback data if API fails
+        setAnalyticsData({
+          overview: {
+            totalRevenue: 125450,
+            totalOrders: 347,
+            totalCustomers: 892,
+            conversionRate: 3.2,
+            averageOrderValue: 361,
+            returningCustomers: 234
+          },
+          revenueChart: [
+            { month: 'Jan', revenue: 18500, orders: 42 },
+            { month: 'Feb', revenue: 22300, orders: 56 },
+            { month: 'Mar', revenue: 19800, orders: 48 },
+            { month: 'Apr', revenue: 25200, orders: 67 },
+            { month: 'May', revenue: 28100, orders: 73 },
+            { month: 'Jun', revenue: 31550, orders: 85 }
+          ],
+          customerDemographics: {
+            ageGroups: [
+              { range: '18-24', count: 234, percentage: 26 },
+              { range: '25-34', count: 312, percentage: 35 },
+              { range: '35-44', count: 198, percentage: 22 },
+              { range: '45-54', count: 89, percentage: 10 },
+              { range: '55+', count: 59, percentage: 7 }
+            ],
+            regions: [
+              { city: 'Prishtina', customers: 287, orders: 156 },
+              { city: 'Prizren', customers: 124, orders: 78 },
+              { city: 'Peja', customers: 98, orders: 45 },
+              { city: 'Gjilan', customers: 87, orders: 34 },
+              { city: 'Ferizaj', customers: 76, orders: 28 },
+              { city: 'Other', customers: 220, orders: 89 }
+            ]
+          },
+          repairAnalytics: {
+            totalRepairs: 89,
+            averageRepairTime: '4.5 days',
+            customerSatisfaction: 4.7,
+            mostCommonIssues: [
+              { issue: 'Performance Issues', count: 34, percentage: 38 },
+              { issue: 'Hardware Problems', count: 18, percentage: 20 },
+              { issue: 'Software Issues', count: 15, percentage: 17 },
+              { issue: 'Gaming Issues', count: 12, percentage: 13 },
+              { issue: 'Other', count: 10, percentage: 12 }
+            ]
+          }
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [selectedPeriod]);
+
+  if (loading || !analyticsData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="loading-spinner mb-4"></div>
+          <p className="text-gray-400">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
       <div className="container mx-auto px-6 py-8">

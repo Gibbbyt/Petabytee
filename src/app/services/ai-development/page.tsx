@@ -138,31 +138,42 @@ export default function AIDevelopmentPage() {
     setLoading(true);
 
     try {
-      // In a real implementation, this would send to an API
-      console.log('AI Development Request:', formData);
-      
-      alert(language === 'sq' 
-        ? 'Kërkesa juaj për zhvillim AI u dërgua me sukses! Do t\'ju kontaktojmë brenda 24 orëve.'
-        : 'Your AI development request was sent successfully! We will contact you within 24 hours.'
-      );
-      
-      // Reset form
-      setFormData({
-        projectType: '',
-        name: '',
-        email: '',
-        phone: '',
-        company: '',
-        projectDescription: '',
-        budget: '',
-        timeline: '',
-        features: []
+      const response = await fetch('/api/services/ai-development', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        alert(language === 'sq' 
+          ? 'Kërkesa juaj për zhvillim AI u dërgua me sukses! Do t\'ju kontaktojmë brenda 24 orëve.'
+          : 'Your AI development request was sent successfully! We will contact you within 24 hours.'
+        );
+        
+        // Reset form
+        setFormData({
+          projectType: '',
+          name: '',
+          email: '',
+          phone: '',
+          company: '',
+          projectDescription: '',
+          budget: '',
+          timeline: '',
+          features: []
+        });
+      } else {
+        throw new Error(result.error || 'Failed to submit request');
+      }
     } catch (error) {
       console.error('Error submitting form:', error);
       alert(language === 'sq' 
-        ? 'Gabim në dërgimin e kërkesës'
-        : 'Error submitting request'
+        ? 'Gabim në dërgimin e kërkesës. Ju lutem provoni përsëri.'
+        : 'Error submitting request. Please try again.'
       );
     } finally {
       setLoading(false);

@@ -387,12 +387,14 @@ function OrderFilters({ filters, onFilterChange }) {
 }
 
 export default function OrderManagementPage() {
-  const [filteredOrders, setFilteredOrders] = useState(orders)
-  const [selectedOrder, setSelectedOrder] = useState(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedOrders, setSelectedOrders] = useState([])
-  const [sortBy, setSortBy] = useState('orderDate')
-  const [sortOrder, setSortOrder] = useState('desc')
+  const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [sortBy, setSortBy] = useState('orderDate');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [loading, setLoading] = useState(true);
   
   const [filters, setFilters] = useState({
     status: '',
@@ -400,45 +402,73 @@ export default function OrderManagementPage() {
     startDate: '',
     endDate: '',
     search: ''
-  })
+  });
+
+  // Fetch orders from API
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const queryParams = new URLSearchParams();
+        
+        if (filters.status) queryParams.set('status', filters.status);
+        if (filters.paymentStatus) queryParams.set('paymentStatus', filters.paymentStatus);
+        if (filters.startDate) queryParams.set('startDate', filters.startDate);
+        if (filters.endDate) queryParams.set('endDate', filters.endDate);
+        if (filters.search) queryParams.set('search', filters.search);
+
+        const response = await fetch(`/api/admin/orders?${queryParams}`);
+        const ordersData = await response.json();
+        
+        setOrders(ordersData);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+        // Keep existing orders if API fails
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [filters]);
 
   // Filter and sort orders
   useEffect(() => {
     let filtered = orders.filter(order => {
-      if (filters.status && order.status !== filters.status) return false
-      if (filters.paymentStatus && order.paymentStatus !== filters.paymentStatus) return false
-      if (filters.startDate && new Date(order.orderDate) < new Date(filters.startDate)) return false
-      if (filters.endDate && new Date(order.orderDate) > new Date(filters.endDate)) return false
+      if (filters.status && order.status !== filters.status) return false;
+      if (filters.paymentStatus && order.paymentStatus !== filters.paymentStatus) return false;
+      if (filters.startDate && new Date(order.orderDate) < new Date(filters.startDate)) return false;
+      if (filters.endDate && new Date(order.orderDate) > new Date(filters.endDate)) return false;
       if (filters.search) {
-        const searchLower = filters.search.toLowerCase()
+        const searchLower = filters.search.toLowerCase();
         return (
           order.id.toLowerCase().includes(searchLower) ||
           order.customerName.toLowerCase().includes(searchLower) ||
           order.customerEmail.toLowerCase().includes(searchLower)
-        )
+        );
       }
-      return true
-    })
+      return true;
+    });
 
     // Sort orders
     filtered.sort((a, b) => {
-      let aValue = a[sortBy]
-      let bValue = b[sortBy]
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
       
       if (sortBy === 'orderDate') {
-        aValue = new Date(aValue)
-        bValue = new Date(bValue)
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
       }
       
       if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1
+        return aValue > bValue ? 1 : -1;
       } else {
-        return aValue < bValue ? 1 : -1
+        return aValue < bValue ? 1 : -1;
       }
-    })
+    });
 
-    setFilteredOrders(filtered)
-  }, [filters, sortBy, sortOrder])
+    setFilteredOrders(filtered);
+  }, [orders, filters, sortBy, sortOrder]);
 
   const handleFilterChange = (field, value) => {
     if (field === 'clear') {
@@ -448,55 +478,69 @@ export default function OrderManagementPage() {
         startDate: '',
         endDate: '',
         search: ''
-      })
+      });
     } else {
-      setFilters(prev => ({ ...prev, [field]: value }))
+      setFilters(prev => ({ ...prev, [field]: value }));
     }
-  }
+  };
 
   const handleOrderClick = (order) => {
-    setSelectedOrder(order)
-    setIsModalOpen(true)
-  }
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
 
-  const handleStatusUpdate = (orderId, newStatus) => {
-    // Here you would make an API call to update the order status
-    console.log(`Updating order ${orderId} to status: ${newStatus}`)
-    
-    // Update local state for demo
-    const updatedOrders = orders.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    )
-    setFilteredOrders(updatedOrders)
-    
-    // Update selected order
-    if (selectedOrder && selectedOrder.id === orderId) {
-      setSelectedOrder({ ...selectedOrder, status: newStatus })
+  const handleStatusUpdate = async (orderId, newStatus) => {
+    try {
+      const response = await fetch('/api/admin/orders', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId, status: newStatus }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        const updatedOrders = orders.map(order => 
+          order.id === orderId ? { ...order, status: newStatus } : order
+        );
+        setOrders(updatedOrders);
+        
+        // Update selected order
+        if (selectedOrder && selectedOrder.id === orderId) {
+          setSelectedOrder({ ...selectedOrder, status: newStatus });
+        }
+      } else {
+        throw new Error('Failed to update order status');
+      }
+    } catch (error) {
+      console.error('Error updating order:', error);
+      alert('Failed to update order status');
     }
-  }
+  };
 
   const handleSort = (field) => {
     if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortBy(field)
-      setSortOrder('asc')
+      setSortBy(field);
+      setSortOrder('asc');
     }
-  }
+  };
 
   const toggleOrderSelection = (orderId) => {
     setSelectedOrders(prev => 
       prev.includes(orderId) 
         ? prev.filter(id => id !== orderId)
         : [...prev, orderId]
-    )
-  }
+    );
+  };
 
   const handleBulkAction = (action) => {
-    console.log(`Performing bulk action: ${action} on orders:`, selectedOrders)
+    console.log(`Performing bulk action: ${action} on orders:`, selectedOrders);
     // Here you would implement bulk actions
-    setSelectedOrders([])
-  }
+    setSelectedOrders([]);
+  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-GB', {

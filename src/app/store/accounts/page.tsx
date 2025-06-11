@@ -30,6 +30,7 @@ export default function AccountsPage() {
     region: 'europe',
     extras: [] as string[]
   });
+  const [loading, setLoading] = useState(false);
 
   const accountTypes = [
     {
@@ -153,12 +154,51 @@ export default function AccountsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Account order:', { ...formData, accountType: selectedAccount, total: calculateTotal() });
-    
-    alert(language === 'sq' 
-      ? 'Porosia juaj për hapjen e llogarisë u dërgua! Do t\'ju kontaktojmë brenda 24 orëve.'
-      : 'Your account opening order was submitted! We will contact you within 24 hours.'
-    );
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/store/accounts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          accountType: selectedAccount,
+          total: calculateTotal()
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        alert(language === 'sq' 
+          ? 'Porosia juaj për hapjen e llogarisë u dërgua! Do t\'ju kontaktojmë brenda 24 orëve.'
+          : 'Your account opening order was submitted! We will contact you within 24 hours.'
+        );
+        
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          accountType: '',
+          region: 'europe',
+          extras: []
+        });
+        setSelectedAccount('');
+      } else {
+        throw new Error(result.error || 'Failed to submit order');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert(language === 'sq' 
+        ? 'Gabim në dërgimin e porosisë. Ju lutem provoni përsëri.'
+        : 'Error submitting order. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -350,6 +390,7 @@ export default function AccountsPage() {
                   <Button 
                     type="submit" 
                     className="w-full bg-brand-gradient hover:opacity-90"
+                    disabled={loading}
                   >
                     <ShoppingCart className="w-4 h-4 mr-2" />
                     {language === 'sq' ? 'Porosit Tani' : 'Order Now'}

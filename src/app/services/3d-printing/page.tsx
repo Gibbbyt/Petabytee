@@ -122,30 +122,45 @@ export default function Printing3DPage() {
     setLoading(true);
 
     try {
-      console.log('3D Printing Request:', formData);
-      
-      alert(language === 'sq' 
-        ? 'Kërkesa juaj për printim 3D u dërgua me sukses! Do t\'ju kontaktojmë për detaje.'
-        : 'Your 3D printing request was sent successfully! We will contact you for details.'
-      );
-      
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        projectType: '',
-        material: '',
-        quantity: 1,
-        description: '',
-        budget: '',
-        urgency: 'normal',
-        files: []
+      const response = await fetch('/api/services/3d-printing', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          estimatedPrice: calculatePrice()
+        }),
       });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        alert(language === 'sq' 
+          ? 'Kërkesa juaj për printim 3D u dërgua me sukses! Do t\'ju kontaktojmë për detaje.'
+          : 'Your 3D printing request was sent successfully! We will contact you for details.'
+        );
+        
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          projectType: '',
+          material: '',
+          quantity: 1,
+          description: '',
+          budget: '',
+          urgency: 'normal',
+          files: []
+        });
+      } else {
+        throw new Error(result.error || 'Failed to submit request');
+      }
     } catch (error) {
       console.error('Error submitting form:', error);
       alert(language === 'sq' 
-        ? 'Gabim në dërgimin e kërkesës'
-        : 'Error submitting request'
+        ? 'Gabim në dërgimin e kërkesës. Ju lutem provoni përsëri.'
+        : 'Error submitting request. Please try again.'
       );
     } finally {
       setLoading(false);

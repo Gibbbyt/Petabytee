@@ -63,24 +63,21 @@ export default function FixYourStuffPage() {
       duration: '15 min',
       difficulty: language === 'sq' ? 'E lehtë' : 'Easy',
       views: 2840,
-      rating: 4.8,
-      thumbnail: '/api/placeholder/300/200'
+      rating: 4.8
     },
     {
       title: language === 'sq' ? 'Zëvendësimi i Baterisë së Telefonit' : 'Phone Battery Replacement',
       duration: '20 min',
       difficulty: language === 'sq' ? 'Mesatare' : 'Medium',
       views: 1920,
-      rating: 4.6,
-      thumbnail: '/api/placeholder/300/200'
+      rating: 4.6
     },
     {
       title: language === 'sq' ? 'Instalimi i SSD në Laptop' : 'Installing SSD in Laptop',
       duration: '25 min',
       difficulty: language === 'sq' ? 'E avancuar' : 'Advanced',
       views: 3100,
-      rating: 4.9,
-      thumbnail: '/api/placeholder/300/200'
+      rating: 4.9
     }
   ];
 
