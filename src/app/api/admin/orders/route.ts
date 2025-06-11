@@ -5,7 +5,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const paymentStatus = searchParams.get('paymentStatus');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const search = searchParams.get('search');
@@ -15,10 +14,6 @@ export async function GET(request: NextRequest) {
 
     if (status) {
       where.status = status.toUpperCase();
-    }
-
-    if (paymentStatus) {
-      where.paymentStatus = paymentStatus.toUpperCase();
     }
 
     if (startDate && endDate) {
@@ -73,12 +68,9 @@ export async function GET(request: NextRequest) {
       })),
       total: order.total,
       status: order.status.toLowerCase(),
-      paymentStatus: order.paymentStatus?.toLowerCase() || 'pending',
+      paymentStatus: order.paymentMethod ? 'paid' : 'pending', // Use paymentMethod as proxy
       shippingAddress: order.shippingAddress || '',
       orderDate: order.createdAt.toISOString(),
-      estimatedDelivery: order.estimatedDelivery?.toISOString(),
-      deliveredDate: order.deliveredAt?.toISOString(),
-      trackingNumber: order.trackingNumber,
       notes: order.notes || ''
     }));
 
@@ -102,7 +94,6 @@ export async function GET(request: NextRequest) {
         paymentStatus: 'paid',
         shippingAddress: 'Rruga Agim Ramadani 15, 10000 Prishtina, Kosovo',
         orderDate: '2024-01-15T10:30:00Z',
-        estimatedDelivery: '2024-01-22T00:00:00Z',
         notes: 'Customer requested RGB lighting customization'
       }
     ]);
@@ -117,7 +108,6 @@ export async function PUT(request: NextRequest) {
       where: { orderNumber: orderId },
       data: {
         status: status.toUpperCase(),
-        trackingNumber: trackingNumber || undefined,
         updatedAt: new Date()
       }
     });

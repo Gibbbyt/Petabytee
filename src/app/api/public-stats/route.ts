@@ -3,51 +3,49 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get public statistics that can be displayed on homepage
+    // Get public statistics that don't require authentication
     const [
-      totalCustomers,
-      totalPCBuilds,
       totalOrders,
-      totalRepairs
+      totalConfigurations,
+      totalRepairs,
+      totalCustomers
     ] = await Promise.all([
-      prisma.user.count({
-        where: { role: 'CLIENT' }
-      }),
-      prisma.pcConfiguration.count({
-        where: { status: 'SAVED' }
-      }),
-      prisma.order.count({
-        where: { status: 'COMPLETED' }
-      }),
+      prisma.order.count(),
+      // Count both PC and PS5 configurations
+      Promise.all([
+        prisma.pCConfig.count({
+          where: { status: 'SAVED' }
+        }),
+        prisma.pS5Config.count({
+          where: { status: 'SAVED' }
+        })
+      ]).then(([pcCount, ps5Count]) => pcCount + ps5Count),
       prisma.repair.count({
         where: { status: 'COMPLETED' }
+      }),
+      prisma.user.count({
+        where: { role: 'CLIENT' }
       })
     ]);
 
-    // Calculate rating based on completed orders and repairs
-    const totalServices = totalOrders + totalRepairs;
-    const rating = totalServices > 0 ? Math.min(5.0, 4.5 + (totalServices / 1000) * 0.5) : 4.8;
+    const stats = {
+      totalOrders,
+      totalConfigurations,
+      totalRepairs,
+      totalCustomers,
+      // Add some default metrics for homepage
+      satisfaction: 4.9,
+      countries: 3, // Kosovo, Albania, North Macedonia
+      experience: '5+'
+    };
 
-    return NextResponse.json({
-      customers: totalCustomers,
-      pcBuilds: totalPCBuilds,
-      orders: totalOrders,
-      repairs: totalRepairs,
-      rating: Number(rating.toFixed(1)),
-      lastUpdated: new Date().toISOString()
-    });
+    return NextResponse.json(stats);
 
   } catch (error) {
-    console.error('Error fetching public stats:', error);
-    
-    // Return fallback stats if database is not available
-    return NextResponse.json({
-      customers: 500,
-      pcBuilds: 250,
-      orders: 150,
-      repairs: 300,
-      rating: 4.8,
-      lastUpdated: new Date().toISOString()
-    });
+    console.error('Get public stats error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

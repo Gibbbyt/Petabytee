@@ -4,47 +4,72 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
     const category = searchParams.get('category');
-    const buildType = searchParams.get('buildType');
+    const minPrice = searchParams.get('minPrice');
+    const maxPrice = searchParams.get('maxPrice');
+    const inStock = searchParams.get('inStock');
 
-    let where: any = {
-      isActive: true,
-      inStock: true
-    };
+    const where: any = {};
 
-    if (category) {
-      where.category = category.toUpperCase();
+    if (type) {
+      where.componentType = type.toUpperCase();
     }
 
-    if (buildType) {
-      where.compatibleBuilds = {
-        contains: buildType
+    if (category) {
+      where.product = {
+        category: category.toUpperCase()
       };
     }
 
-    const components = await prisma.pcComponent.findMany({
+    if (minPrice || maxPrice) {
+      where.product = {
+        ...where.product,
+        price: {
+          ...(minPrice && { gte: parseFloat(minPrice) }),
+          ...(maxPrice && { lte: parseFloat(maxPrice) })
+        }
+      };
+    }
+
+    if (inStock === 'true') {
+      where.product = {
+        ...where.product,
+        stock: { gt: 0 }
+      };
+    }
+
+    const components = await prisma.pCComponent.findMany({
       where,
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            nameAl: true,
+            description: true,
+            descriptionAl: true,
+            price: true,
+            image: true,
+            stock: true,
+            category: true
+          }
+        }
+      },
       orderBy: {
-        price: 'asc'
+        product: {
+          price: 'asc'
+        }
       }
     });
 
-    return NextResponse.json({
-      components: components.map(component => ({
-        id: component.id,
-        name: component.name,
-        nameEn: component.nameEn,
-        description: component.description,
-        descriptionEn: component.descriptionEn,
-        price: component.price,
-        specs: component.specs,
-        specsEn: component.specsEn,
-        compatibility: component.compatibility,
-        inStock: component.inStock,
-        category: component.category,
-        image: component.image
-      }))
-    });
+    // Parse specifications from JSON string for each component
+    const componentsWithSpecs = components.map(component => ({
+      ...component,
+      specifications: component.specifications ? JSON.parse(component.specifications) : {}
+    }));
+
+    return NextResponse.json({ components: componentsWithSpecs });
 
   } catch (error) {
     console.error('Get PC components error:', error);
@@ -59,34 +84,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      name,
-      nameEn,
-      description,
-      descriptionEn,
-      category,
-      price,
-      specs,
-      specsEn,
-      compatibility,
-      compatibleBuilds,
-      image
+      productId,
+      componentType,
+      specifications
     } = body;
 
-    const component = await prisma.pcComponent.create({
+    const component = await prisma.pCComponent.create({
       data: {
-        name,
-        nameEn,
-        description,
-        descriptionEn,
-        category: category.toUpperCase(),
-        price: parseFloat(price),
-        specs: specs || [],
-        specsEn: specsEn || [],
-        compatibility: compatibility || [],
-        compatibleBuilds: compatibleBuilds || [],
-        image,
-        inStock: true,
-        isActive: true
+        productId,
+        componentType: componentType.toUpperCase(),
+        specifications: JSON.stringify(specifications || {})
+      },
+      include: {
+        product: true
       }
     });
 

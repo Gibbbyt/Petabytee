@@ -46,34 +46,104 @@ const createPS5ConfigSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type'); // 'pc' or 'ps5'
+    const userId = searchParams.get('userId');
+    const configId = searchParams.get('configId');
+
+    // Check authentication
     const session = await getServerSession(authOptions);
     
-    if (!session) {
+    const userRole = (session?.user as any)?.role;
+    if (!session || (userRole !== 'ADMIN' && userRole !== 'CLIENT')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type'); // 'pc' or 'ps5'
-    const userRole = (session?.user as any)?.role;
-    const userId = userRole === 'ADMIN' ? searchParams.get('userId') : (session.user as any)?.id;
-    const isPublic = searchParams.get('public') === 'true';
+    // If configId is provided, return specific configuration
+    if (configId) {
+      if (type === 'pc') {
+        const config = await prisma.pCConfig.findUnique({
+          where: { id: configId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
+            items: {
+              include: {
+                component: {
+                  include: {
+                    product: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        if (!config) {
+          return NextResponse.json({ error: 'Configuration not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ configuration: config });
+      } else if (type === 'ps5') {
+        const config = await prisma.pS5Config.findUnique({
+          where: { id: configId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
+            items: {
+              include: {
+                component: {
+                  include: {
+                    product: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        if (!config) {
+          return NextResponse.json({ error: 'Configuration not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ configuration: config });
+      }
+    }
+
+    // Build where clause for filtering
+    const where: any = {};
+    if (userId) {
+      where.userId = userId;
+    }
 
     if (type === 'pc') {
-      const where: any = {};
-      
-      if (isPublic) {
-        where.isPublic = true;
-      } else if (userId) {
-        where.userId = userId;
-      }
-
-      const configs = await prisma.pcConfiguration.findMany({
+      const configs = await prisma.pCConfig.findMany({
         where,
         include: {
           user: {
             select: {
+              id: true,
               name: true,
               email: true
+            }
+          },
+          items: {
+            include: {
+              component: {
+                include: {
+                  product: true
+                }
+              }
             }
           }
         },
@@ -82,39 +152,25 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      return NextResponse.json({
-        configurations: configs.map(config => ({
-          id: config.id,
-          name: config.name,
-          nameEn: config.nameEn,
-          buildType: config.buildType,
-          components: config.components,
-          totalPrice: config.totalPrice,
-          notes: config.notes,
-          isPublic: config.isPublic,
-          user: config.user,
-          createdAt: config.createdAt,
-          updatedAt: config.updatedAt
-        }))
-      });
-    }
-
-    if (type === 'ps5') {
-      const where: any = {};
-      
-      if (isPublic) {
-        where.isPublic = true;
-      } else if (userId) {
-        where.userId = userId;
-      }
-
-      const configs = await prisma.ps5Configuration.findMany({
+      return NextResponse.json({ configurations: configs });
+    } else if (type === 'ps5') {
+      const configs = await prisma.pS5Config.findMany({
         where,
         include: {
           user: {
             select: {
+              id: true,
               name: true,
               email: true
+            }
+          },
+          items: {
+            include: {
+              component: {
+                include: {
+                  product: true
+                }
+              }
             }
           }
         },
@@ -123,25 +179,10 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      return NextResponse.json({
-        configurations: configs.map(config => ({
-          id: config.id,
-          name: config.name,
-          nameEn: config.nameEn,
-          components: config.components,
-          colors: config.colors,
-          customizations: config.customizations,
-          totalPrice: config.totalPrice,
-          notes: config.notes,
-          isPublic: config.isPublic,
-          user: config.user,
-          createdAt: config.createdAt,
-          updatedAt: config.updatedAt
-        }))
-      });
+      return NextResponse.json({ configurations: configs });
     }
 
-    return NextResponse.json({ error: 'Invalid configuration type' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid type parameter' }, { status: 400 });
 
   } catch (error) {
     console.error('Get configurations error:', error);
@@ -156,65 +197,78 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session) {
+    const userRole = (session?.user as any)?.role;
+    if (!session || (userRole !== 'ADMIN' && userRole !== 'CLIENT')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type'); // 'pc' or 'ps5'
-
-    if (!type || !['pc', 'ps5'].includes(type)) {
-      return NextResponse.json({ error: 'Invalid configuration type' }, { status: 400 });
-    }
-
-    const body = await request.json();
+    const { type, name, components, totalPrice } = await request.json();
+    const userId = (session.user as any)?.id;
 
     if (type === 'pc') {
-      const configData = createPCConfigSchema.parse(body);
-
-      const configuration = await prisma.pcConfiguration.create({
+      const configuration = await prisma.pCConfig.create({
         data: {
-          ...configData,
-          userId: (session.user as any)?.id,
-          components: configData.components as any,
+          userId,
+          name,
+          totalPrice,
+          status: 'SAVED',
+          items: {
+            create: components.map((comp: any) => ({
+              componentId: comp.componentId,
+              quantity: comp.quantity || 1,
+              price: comp.price
+            }))
+          }
+        },
+        include: {
+          items: {
+            include: {
+              component: {
+                include: {
+                  product: true
+                }
+              }
+            }
+          }
         }
       });
 
-      return NextResponse.json({
-        message: 'PC configuration saved successfully',
-        configuration
-      }, { status: 201 });
-    }
-
-    if (type === 'ps5') {
-      const configData = createPS5ConfigSchema.parse(body);
-
-      const configuration = await prisma.ps5Configuration.create({
+      return NextResponse.json({ configuration });
+    } else if (type === 'ps5') {
+      const configuration = await prisma.pS5Config.create({
         data: {
-          ...configData,
-          userId: (session.user as any)?.id,
-          components: configData.components as any,
-          colors: configData.colors as any,
-          customizations: configData.customizations as any,
+          userId,
+          name,
+          totalPrice,
+          status: 'SAVED',
+          items: {
+            create: components.map((comp: any) => ({
+              componentId: comp.componentId,
+              customColor: comp.customColor,
+              price: comp.price
+            }))
+          }
+        },
+        include: {
+          items: {
+            include: {
+              component: {
+                include: {
+                  product: true
+                }
+              }
+            }
+          }
         }
       });
 
-      return NextResponse.json({
-        message: 'PS5 configuration saved successfully',
-        configuration
-      }, { status: 201 });
+      return NextResponse.json({ configuration });
     }
+
+    return NextResponse.json({ error: 'Invalid type parameter' }, { status: 400 });
 
   } catch (error) {
     console.error('Create configuration error:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -226,74 +280,79 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session) {
+    const userRole = (session?.user as any)?.role;
+    if (!session || (userRole !== 'ADMIN' && userRole !== 'CLIENT')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type');
-    const configId = searchParams.get('id');
-
-    if (!configId) {
-      return NextResponse.json({ error: 'Configuration ID is required' }, { status: 400 });
-    }
-
-    const body = await request.json();
+    const { configId, type, name, components, totalPrice } = await request.json();
 
     if (type === 'pc') {
-      const configData = createPCConfigSchema.partial().parse(body);
-
-      const configuration = await prisma.pcConfiguration.update({
-        where: { 
-          id: configId,
-          userId: (session.user as any)?.id // Ensure user can only update their own configs
-        },
+      const configuration = await prisma.pCConfig.update({
+        where: { id: configId },
         data: {
-          ...configData,
-          components: configData.components as any,
+          name,
+          totalPrice,
+          updatedAt: new Date(),
+          items: {
+            deleteMany: {},
+            create: components.map((comp: any) => ({
+              componentId: comp.componentId,
+              quantity: comp.quantity || 1,
+              price: comp.price
+            }))
+          }
+        },
+        include: {
+          items: {
+            include: {
+              component: {
+                include: {
+                  product: true
+                }
+              }
+            }
+          }
         }
       });
 
-      return NextResponse.json({
-        message: 'PC configuration updated successfully',
-        configuration
-      });
-    }
-
-    if (type === 'ps5') {
-      const configData = createPS5ConfigSchema.partial().parse(body);
-
-      const configuration = await prisma.ps5Configuration.update({
-        where: { 
-          id: configId,
-          userId: (session.user as any)?.id
-        },
+      return NextResponse.json({ configuration });
+    } else if (type === 'ps5') {
+      const configuration = await prisma.pS5Config.update({
+        where: { id: configId },
         data: {
-          ...configData,
-          components: configData.components as any,
-          colors: configData.colors as any,
-          customizations: configData.customizations as any,
+          name,
+          totalPrice,
+          updatedAt: new Date(),
+          items: {
+            deleteMany: {},
+            create: components.map((comp: any) => ({
+              componentId: comp.componentId,
+              customColor: comp.customColor,
+              price: comp.price
+            }))
+          }
+        },
+        include: {
+          items: {
+            include: {
+              component: {
+                include: {
+                  product: true
+                }
+              }
+            }
+          }
         }
       });
 
-      return NextResponse.json({
-        message: 'PS5 configuration updated successfully',
-        configuration
-      });
+      return NextResponse.json({ configuration });
     }
 
-    return NextResponse.json({ error: 'Invalid configuration type' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid type parameter' }, { status: 400 });
 
   } catch (error) {
     console.error('Update configuration error:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -305,39 +364,30 @@ export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session) {
+    const userRole = (session?.user as any)?.role;
+    if (!session || (userRole !== 'ADMIN' && userRole !== 'CLIENT')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
+    const configId = searchParams.get('configId');
     const type = searchParams.get('type');
-    const configId = searchParams.get('id');
 
-    if (!configId) {
-      return NextResponse.json({ error: 'Configuration ID is required' }, { status: 400 });
+    if (!configId || !type) {
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
     if (type === 'pc') {
-      await prisma.pcConfiguration.delete({
-        where: { 
-          id: configId,
-          userId: (session.user as any)?.id
-        }
+      await prisma.pCConfig.delete({
+        where: { id: configId }
       });
     } else if (type === 'ps5') {
-      await prisma.ps5Configuration.delete({
-        where: { 
-          id: configId,
-          userId: (session.user as any)?.id
-        }
+      await prisma.pS5Config.delete({
+        where: { id: configId }
       });
-    } else {
-      return NextResponse.json({ error: 'Invalid configuration type' }, { status: 400 });
     }
 
-    return NextResponse.json({
-      message: 'Configuration deleted successfully'
-    });
+    return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error('Delete configuration error:', error);

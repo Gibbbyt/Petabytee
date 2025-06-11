@@ -32,10 +32,10 @@ export async function GET(request: NextRequest) {
           }
         }
       }),
-      prisma.pcConfiguration.count({
+      prisma.pCConfig.count({
         where: { userId }
       }),
-      prisma.ps5Configuration.count({
+      prisma.pS5Config.count({
         where: { userId }
       })
     ]);
@@ -48,26 +48,24 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc'
       },
       include: {
-        orderItems: {
+        items: {
           include: {
             product: {
               select: {
                 name: true,
-                nameEn: true
-              }
-            },
-            pcConfiguration: {
-              select: {
-                name: true,
-                nameEn: true
-              }
-            },
-            ps5Configuration: {
-              select: {
-                name: true,
-                nameEn: true
+                nameAl: true
               }
             }
+          }
+        },
+        pcConfig: {
+          select: {
+            name: true
+          }
+        },
+        ps5Config: {
+          select: {
+            name: true
           }
         }
       }
@@ -102,16 +100,8 @@ export async function GET(request: NextRequest) {
         status: order.status,
         total: order.total,
         createdAt: order.createdAt,
-        items: order.orderItems.map(item => {
-          if (item.product) {
-            return item.product.name || item.product.nameEn;
-          } else if (item.pcConfiguration) {
-            return item.pcConfiguration.name || item.pcConfiguration.nameEn;
-          } else if (item.ps5Configuration) {
-            return item.ps5Configuration.name || item.ps5Configuration.nameEn;
-          }
-          return 'Unknown Item';
-        })
+        items: order.items.map(item => item.product.name),
+        configName: order.pcConfig?.name || order.ps5Config?.name || null
       })),
       activeRepairs: activeRepairsList.map(repair => ({
         id: repair.id,

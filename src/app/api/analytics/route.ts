@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
         select: {
           total: true,
           createdAt: true,
-          type: true
+          pcConfigId: true,
+          ps5ConfigId: true
         }
       });
 
@@ -63,12 +64,17 @@ export async function GET(request: NextRequest) {
         return acc;
       }, {});
 
+      // Determine order type based on what's configured
       const revenueByType = orders.reduce((acc: any, order) => {
-        if (!acc[order.type]) {
-          acc[order.type] = { total: 0, count: 0 };
+        let orderType = 'PRODUCT'; // Default
+        if (order.pcConfigId) orderType = 'PC_BUILD';
+        else if (order.ps5ConfigId) orderType = 'PS5_CONTROLLER';
+        
+        if (!acc[orderType]) {
+          acc[orderType] = { total: 0, count: 0 };
         }
-        acc[order.type].total += order.total;
-        acc[order.type].count += 1;
+        acc[orderType].total += order.total;
+        acc[orderType].count += 1;
         return acc;
       }, {});
 
@@ -122,7 +128,6 @@ export async function GET(request: NextRequest) {
         { name: 'PC Configurator', revenue: revenueByType['PC_BUILD']?.total || 0, orders: revenueByType['PC_BUILD']?.count || 0 },
         { name: 'PS5 Controller', revenue: revenueByType['PS5_CONTROLLER']?.total || 0, orders: revenueByType['PS5_CONTROLLER']?.count || 0 },
         { name: 'Products', revenue: revenueByType['PRODUCT']?.total || 0, orders: revenueByType['PRODUCT']?.count || 0 },
-        { name: 'Gift Cards', revenue: revenueByType['GIFT_CARD']?.total || 0, orders: revenueByType['GIFT_CARD']?.count || 0 },
         { name: 'Repairs', revenue: totalRepairRevenue, orders: repairs.length }
       ].sort((a, b) => b.revenue - a.revenue);
 
@@ -177,7 +182,7 @@ export async function GET(request: NextRequest) {
               email: true
             }
           },
-          orderItems: {
+          items: {
             include: {
               product: {
                 select: {
@@ -191,16 +196,22 @@ export async function GET(request: NextRequest) {
       });
 
       return NextResponse.json({
-        sales: salesData.map(order => ({
-          id: order.id,
-          orderNumber: order.orderNumber,
-          customer: order.user.name,
-          total: order.total,
-          status: order.status,
-          type: order.type,
-          createdAt: order.createdAt,
-          itemCount: order.orderItems.length
-        })),
+        sales: salesData.map(order => {
+          let orderType = 'PRODUCT'; // Default
+          if (order.pcConfigId) orderType = 'PC_BUILD';
+          else if (order.ps5ConfigId) orderType = 'PS5_CONTROLLER';
+          
+          return {
+            id: order.id,
+            orderNumber: order.orderNumber,
+            customer: order.user.name,
+            total: order.total,
+            status: order.status,
+            type: orderType,
+            createdAt: order.createdAt,
+            itemCount: order.items.length
+          };
+        }),
         summary: {
           totalSales: salesData.reduce((sum, order) => sum + order.total, 0),
           orderCount: salesData.length,

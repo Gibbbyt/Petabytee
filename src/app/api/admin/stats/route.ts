@@ -130,8 +130,12 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ 
         where: { 
           role: 'CLIENT',
-          lastLoginAt: {
-            gte: startDate
+          orders: {
+            some: {
+              createdAt: {
+                gte: startDate
+              }
+            }
           }
         } 
       })

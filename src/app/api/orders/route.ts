@@ -72,15 +72,15 @@ export async function GET(request: NextRequest) {
               email: true,
             }
           },
-          orderItems: {
+          items: {
             include: {
               product: true,
-              pcConfiguration: true,
-              ps5Configuration: true,
             }
           },
+          pcConfig: true,
+          ps5Config: true,
           invoice: true,
-          timelineEntries: {
+          timeline: {
             orderBy: {
               createdAt: 'desc'
             }
@@ -128,7 +128,8 @@ export async function POST(request: NextRequest) {
     // Calculate total
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const tax = subtotal * 0.2; // 20% VAT
-    const total = subtotal + tax;
+    const shipping = 0; // Free shipping for now
+    const total = subtotal + tax + shipping;
 
     // Generate order number
     const orderCount = await prisma.order.count();
@@ -141,55 +142,54 @@ export async function POST(request: NextRequest) {
         data: {
           orderNumber,
           userId: (session.user as any)?.id,
-          type,
           status: 'PENDING',
           subtotal,
           tax,
+          shipping,
           total,
           shippingAddress: JSON.stringify(shippingAddress),
           notes,
-          language,
+          pcConfigId: items.find(item => item.pcConfigId)?.pcConfigId || null,
+          ps5ConfigId: items.find(item => item.ps5ConfigId)?.ps5ConfigId || null,
         }
       });
 
       // Create order items
       for (const item of items) {
-        await tx.orderItem.create({
-          data: {
-            orderId: newOrder.id,
-            productId: item.productId,
-            pcConfigurationId: item.pcConfigId,
-            ps5ConfigurationId: item.ps5ConfigId,
-            quantity: item.quantity,
-            price: item.price,
-            customizations: item.customizations ? JSON.stringify(item.customizations) : null,
-          }
-        });
+        if (item.productId) {
+          await tx.orderItem.create({
+            data: {
+              orderId: newOrder.id,
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+            }
+          });
+        }
       }
 
       // Create initial timeline entry
-      await tx.timelineEntry.create({
+      await tx.timeline.create({
         data: {
-          orderId: newOrder.id,
-          status: 'PENDING',
+          entityType: 'ORDER',
+          entityId: newOrder.id,
           title: language === 'sq' ? 'Porosi e Krijuar' : 'Order Created',
+          titleAl: 'Porosi e Krijuar',
           description: language === 'sq' 
             ? 'Porositë tuaj është regjistruar me sukses dhe është duke u procesuar.'
             : 'Your order has been successfully registered and is being processed.',
-          isVisible: true,
-          createdBy: (session.user as any)?.id,
+          descriptionAl: 'Porositë tuaj është regjistruar me sukses dhe është duke u procesuar.',
+          icon: 'clock',
         }
       });
 
       // Create invoice
       await tx.invoice.create({
         data: {
-          orderId: newOrder.id,
           invoiceNumber: `INV-${orderNumber}`,
-          subtotal,
-          tax,
-          total,
-          status: 'PENDING',
+          orderId: newOrder.id,
+          amount: total,
+          status: 'DRAFT',
           dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
         }
       });
@@ -198,22 +198,22 @@ export async function POST(request: NextRequest) {
     });
 
     // Send email notification to customer
-    const emailTemplate = emailTemplates.orderConfirmation(
-      orderNumber,
-      total,
-      language
-    );
-    
-    await sendEmail({
-      to: session.user.email || shippingAddress.email,
-      subject: emailTemplate.subject,
-      html: emailTemplate.html,
-    });
-
-    // Send Telegram notification to admins
-    // await sendTelegramNotification({
-    //   message: `🛒 New Order Received!\n\nOrder Number: #${orderNumber}\nCustomer: ${session.user.name || shippingAddress.name}\nTotal: €${total.toFixed(2)}`
-    // });
+    try {
+      const emailTemplate = emailTemplates.orderConfirmation(
+        orderNumber,
+        total,
+        language
+      );
+      
+      await sendEmail({
+        to: session.user.email || shippingAddress.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
+    } catch (emailError) {
+      console.error('Failed to send email:', emailError);
+      // Don't fail the order creation if email fails
+    }
 
     // Fetch complete order with relations
     const completeOrder = await prisma.order.findUnique({
@@ -226,15 +226,15 @@ export async function POST(request: NextRequest) {
             email: true,
           }
         },
-        orderItems: {
+        items: {
           include: {
             product: true,
-            pcConfiguration: true,
-            ps5Configuration: true,
           }
         },
+        pcConfig: true,
+        ps5Config: true,
         invoice: true,
-        timelineEntries: {
+        timeline: {
           orderBy: {
             createdAt: 'desc'
           }

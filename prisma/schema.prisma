@@ -16,7 +16,8 @@ model User {
   email           String           @unique
   password        String
   name            String?
-  role            UserRole         @default(CLIENT)
+  phone           String?          // Added phone field
+  role            String           @default("CLIENT")
   isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -45,21 +46,14 @@ model Session {
   updatedAt    DateTime @updatedAt
 }
 
-enum UserRole {
-  CLIENT
-  ADMIN
-  TECHNICIAN
-  SUPPORT
-}
-
 // Product models
 model Product {
   id              String            @id @default(cuid())
   name            String
   nameAl          String            // Albanian name
-  description     String            @db.Text
-  descriptionAl   String            @db.Text // Albanian description
-  category        ProductCategory
+  description     String
+  descriptionAl   String            // Albanian description
+  category        String            // ProductCategory as String
   price           Float
   image           String?
   stock           Int               @default(0)
@@ -75,22 +69,13 @@ model Product {
   buildComponents PCBuildComponent[]
 }
 
-enum ProductCategory {
-  PC_COMPONENT
-  PS5_ACCESSORY
-  GIFT_CARD
-  ACCOUNT
-  SERVICE
-  OTHER
-}
-
 // PC Configurator
 model PCBuild {
   id              String            @id @default(cuid())
   name            String
   nameAl          String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String
+  descriptionAl   String
   basePrice       Float
   image           String?
   isActive        Boolean           @default(true)
@@ -106,7 +91,7 @@ model PCBuild {
 model PCBuildComponent {
   id              String            @id @default(cuid())
   buildId         String
-  componentType   PCComponentType
+  componentType   String            // PCComponentType as String
   productId       String?
   isRequired      Boolean           @default(true)
   
@@ -117,23 +102,11 @@ model PCBuildComponent {
 model PCComponent {
   id              String            @id @default(cuid())
   productId       String
-  componentType   PCComponentType
-  specifications  Json
+  componentType   String            // PCComponentType as String
+  specifications  String            // JSON as string for SQLite compatibility
   
   product         Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   configItems     PCConfigItem[]
-}
-
-enum PCComponentType {
-  CPU
-  GPU
-  MOTHERBOARD
-  RAM
-  STORAGE
-  PSU
-  CASE
-  COOLING
-  OTHER
 }
 
 model PCConfig {
@@ -142,7 +115,7 @@ model PCConfig {
   buildId         String?
   name            String
   totalPrice      Float
-  status          ConfigStatus      @default(DRAFT)
+  status          String            @default("DRAFT")
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
@@ -168,21 +141,11 @@ model PCConfigItem {
 model PS5Component {
   id              String            @id @default(cuid())
   productId       String
-  componentType   PS5ComponentType
+  componentType   String            // PS5ComponentType as String
   colorHex        String?
   
   product         Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   configItems     PS5ConfigItem[]
-}
-
-enum PS5ComponentType {
-  SHELL
-  BUTTONS
-  TRIGGERS
-  THUMBSTICKS
-  DPAD
-  LED
-  OTHER
 }
 
 model PS5Config {
@@ -190,7 +153,7 @@ model PS5Config {
   userId          String?
   name            String
   totalPrice      Float
-  status          ConfigStatus      @default(DRAFT)
+  status          String            @default("DRAFT")
   previewImage    String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -212,25 +175,19 @@ model PS5ConfigItem {
   component       PS5Component      @relation(fields: [componentId], references: [id])
 }
 
-enum ConfigStatus {
-  DRAFT
-  SAVED
-  ORDERED
-}
-
 // Orders
 model Order {
   id              String            @id @default(cuid())
   orderNumber     String            @unique
   userId          String
-  status          OrderStatus       @default(PENDING)
+  status          String            @default("PENDING")
   subtotal        Float
   tax             Float
   shipping        Float
   total           Float
-  paymentMethod   PaymentMethod?
-  shippingAddress Json?
-  notes           String?           @db.Text
+  paymentMethod   String?
+  shippingAddress String?           // JSON as string for SQLite compatibility
+  notes           String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
@@ -256,23 +213,6 @@ model OrderItem {
   product         Product           @relation(fields: [productId], references: [id])
 }
 
-enum OrderStatus {
-  PENDING
-  CONFIRMED
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  CANCELLED
-  REFUNDED
-}
-
-enum PaymentMethod {
-  CASH
-  CARD
-  BANK_TRANSFER
-  PAYPAL
-}
-
 // Repairs
 model Repair {
   id              String            @id @default(cuid())
@@ -280,8 +220,8 @@ model Repair {
   userId          String
   deviceType      String
   deviceModel     String
-  issueDescription String           @db.Text
-  status          RepairStatus      @default(RECEIVED)
+  issueDescription String
+  status          String            @default("RECEIVED")
   estimatedCost   Float?
   finalCost       Float?
   isEasyMailIn    Boolean           @default(false)
@@ -296,29 +236,16 @@ model Repair {
   invoice         Invoice?
 }
 
-enum RepairStatus {
-  PENDING_SHIPMENT
-  SHIPPED_TO_US
-  RECEIVED
-  DIAGNOSING
-  WAITING_APPROVAL
-  REPAIRING
-  COMPLETED
-  SHIPPED_BACK
-  DELIVERED
-  CANCELLED
-}
-
 // Support & Services
 model SupportTicket {
   id              String            @id @default(cuid())
   ticketNumber    String            @unique
   userId          String
   subject         String
-  description     String            @db.Text
-  category        SupportCategory
-  priority        Priority          @default(MEDIUM)
-  status          TicketStatus      @default(OPEN)
+  description     String
+  category        String            // SupportCategory as String
+  priority        String            @default("MEDIUM")
+  status          String            @default("OPEN")
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   resolvedAt      DateTime?
@@ -331,55 +258,39 @@ model SupportTicket {
 model TicketMessage {
   id              String            @id @default(cuid())
   ticketId        String
-  message         String            @db.Text
+  message         String
   isAdminReply    Boolean           @default(false)
   createdAt       DateTime          @default(now())
   
   ticket          SupportTicket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 }
 
-enum SupportCategory {
-  TECHNICAL
-  BILLING
-  GENERAL
-  COMPLAINT
-}
-
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-enum TicketStatus {
-  OPEN
-  IN_PROGRESS
-  WAITING_RESPONSE
-  RESOLVED
-  CLOSED
-}
-
 // Timeline
 model Timeline {
   id              String            @id @default(cuid())
-  entityType      TimelineEntity
+  entityType      String            // TimelineEntity as String
   entityId        String
   title           String
   titleAl         String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String
+  descriptionAl   String
   icon            String?
   createdAt       DateTime          @default(now())
   
-  // Relations - Fixed with unique constraint names
-  order           Order?            @relation(fields: [entityId], references: [id], map: "Timeline_order_entityId_fkey")
-  repair          Repair?           @relation(fields: [entityId], references: [id], map: "Timeline_repair_entityId_fkey")
+  // Relations
+  order           Order?            @relation(fields: [entityId], references: [id])
+  repair          Repair?           @relation(fields: [entityId], references: [id])
 }
 
-enum TimelineEntity {
-  ORDER
-  REPAIR
+// Tags for blog posts (separate model instead of String[])
+model BlogPostTag {
+  id         String   @id @default(cuid())
+  postId     String
+  tag        String
+  
+  post       BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, tag])
 }
 
 // Content Management
@@ -388,13 +299,12 @@ model BlogPost {
   slug            String            @unique
   title           String
   titleAl         String
-  excerpt         String            @db.Text
-  excerptAl       String            @db.Text
-  content         String            @db.Text
-  contentAl       String            @db.Text
+  excerpt         String
+  excerptAl       String
+  content         String
+  contentAl       String
   featuredImage   String?
   author          String
-  tags            String[]
   isPublished     Boolean           @default(false)
   publishedAt     DateTime?
   createdAt       DateTime          @default(now())
@@ -405,6 +315,9 @@ model BlogPost {
   metaTitleAl     String?
   metaDescription String?
   metaDescriptionAl String?
+  
+  // Relations
+  tags            BlogPostTag[]
 }
 
 model News {
@@ -412,8 +325,8 @@ model News {
   slug            String            @unique
   title           String
   titleAl         String
-  content         String            @db.Text
-  contentAl       String            @db.Text
+  content         String
+  contentAl       String
   featuredImage   String?
   isPublished     Boolean           @default(false)
   publishedAt     DateTime?
@@ -426,29 +339,16 @@ model Tutorial {
   slug            String            @unique
   title           String
   titleAl         String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String
+  descriptionAl   String
   videoUrl        String?
-  content         String            @db.Text
-  contentAl       String            @db.Text
-  category        TutorialCategory
-  difficulty      Difficulty
+  content         String
+  contentAl       String
+  category        String            // TutorialCategory as String
+  difficulty      String            // Difficulty as String
   isPublished     Boolean           @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-}
-
-enum TutorialCategory {
-  REPAIR
-  OPTIMIZATION
-  DISASSEMBLY
-  TIPS_TRICKS
-}
-
-enum Difficulty {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
 }
 
 model Review {
@@ -457,7 +357,7 @@ model Review {
   productId       String
   rating          Int
   title           String
-  comment         String            @db.Text
+  comment         String
   isVerified      Boolean           @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -487,7 +387,7 @@ model ForumPost {
   userId          String
   categoryId      String
   title           String
-  content         String            @db.Text
+  content         String
   isPinned        Boolean           @default(false)
   isLocked        Boolean           @default(false)
   viewCount       Int               @default(0)
@@ -502,74 +402,55 @@ model ForumPost {
 
 model ForumComment {
   id              String            @id @default(cuid())
-  postId          String
   userId          String
-  content         String            @db.Text
+  postId          String
+  content         String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
   // Relations
-  post            ForumPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
   user            User              @relation(fields: [userId], references: [id])
+  post            ForumPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
-// Events
 model Event {
   id              String            @id @default(cuid())
   title           String
   titleAl         String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String
+  descriptionAl   String
   startDate       DateTime
-  endDate         DateTime
-  location        String
+  endDate         DateTime?
+  location        String?
   image           String?
   isPublished     Boolean           @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
 
-// Services
 model Service {
   id              String            @id @default(cuid())
   name            String
   nameAl          String
-  description     String            @db.Text
-  descriptionAl   String            @db.Text
+  description     String
+  descriptionAl   String
+  category        String            // ServiceCategory as String
   price           Float?
-  priceType       PriceType
-  category        ServiceCategory
+  priceType       String            @default("FIXED")
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
 
-enum PriceType {
-  FIXED
-  HOURLY
-  QUOTE
-}
-
-enum ServiceCategory {
-  PC_OPTIMIZATION
-  GAMING_CENTER
-  AI_DEVELOPMENT
-  PRINTING_3D
-  SUPPORT_247
-}
-
-// Invoices
+// Billing
 model Invoice {
   id              String            @id @default(cuid())
   invoiceNumber   String            @unique
   orderId         String?           @unique
   repairId        String?           @unique
   amount          Float
-  tax             Float
-  total           Float
-  status          InvoiceStatus     @default(DRAFT)
   dueDate         DateTime
-  paidAt          DateTime?
+  status          String            @default("DRAFT")
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
@@ -578,35 +459,19 @@ model Invoice {
   repair          Repair?           @relation(fields: [repairId], references: [id])
 }
 
-enum InvoiceStatus {
-  DRAFT
-  SENT
-  PAID
-  OVERDUE
-  CANCELLED
-}
-
 // Notifications
 model Notification {
   id              String            @id @default(cuid())
   userId          String
+  type            String            // NotificationType as String
   title           String
-  message         String            @db.Text
-  type            NotificationType
+  message         String
   isRead          Boolean           @default(false)
-  data            Json?
+  data            String?           // JSON as string for SQLite compatibility
   createdAt       DateTime          @default(now())
   
   // Relations
   user            User              @relation(fields: [userId], references: [id])
-}
-
-enum NotificationType {
-  ORDER_UPDATE
-  REPAIR_UPDATE
-  SUPPORT_REPLY
-  SYSTEM
-  PROMOTION
 }
 
 // Team
@@ -616,11 +481,12 @@ model TeamMember {
   nameAl          String
   position        String
   positionAl      String
-  bio             String            @db.Text
-  bioAl           String            @db.Text
+  bio             String
+  bioAl           String
   image           String?
-  order           Int               @default(0)
+  email           String?
   isActive        Boolean           @default(true)
+  order           Int               @default(0)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
@@ -628,50 +494,34 @@ model TeamMember {
 // Analytics
 model Analytics {
   id              String            @id @default(cuid())
-  date            DateTime          @default(now())
   metric          String
   value           Float
-  metadata        Json?
+  metadata        String?           // JSON as string for SQLite compatibility
   createdAt       DateTime          @default(now())
 }
 
-// Gift Cards
+// Store Products
 model GiftCard {
   id              String            @id @default(cuid())
   code            String            @unique
-  type            GiftCardType
+  type            String            // GiftCardType as String
   value           Float
-  balance         Float
-  isActive        Boolean           @default(true)
-  expiresAt       DateTime?
+  isRedeemed      Boolean           @default(false)
+  redeemedBy      String?
   createdAt       DateTime          @default(now())
-  usedAt          DateTime?
-}
-
-enum GiftCardType {
-  STEAM
-  PSN
-  STORE_CREDIT
+  redeemedAt      DateTime?
 }
 
 // Job Applications
 model JobApplication {
   id              String            @id @default(cuid())
-  position        String
   name            String
   email           String
-  phone           String
+  phone           String?
+  position        String
   resume          String?
-  coverLetter     String            @db.Text
-  status          ApplicationStatus @default(NEW)
+  coverLetter     String
+  status          String            @default("NEW")
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-}
-
-enum ApplicationStatus {
-  NEW
-  REVIEWING
-  INTERVIEW
-  ACCEPTED
-  REJECTED
 }
