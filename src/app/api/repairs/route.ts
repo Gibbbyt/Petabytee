@@ -10,19 +10,7 @@ const createRepairSchema = z.object({
   deviceType: z.string().min(1, 'Device type is required'),
   deviceModel: z.string().optional(),
   issueDescription: z.string().min(10, 'Issue description must be at least 10 characters'),
-  urgency: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
-  isEasyMailIn: z.boolean().default(false),
-  estimatedValue: z.number().optional(),
-  shippingAddress: z.object({
-    name: z.string(),
-    email: z.string().email(),
-    phone: z.string(),
-    address: z.string(),
-    city: z.string(),
-    postalCode: z.string(),
-    country: z.string().default('Kosovo'),
-  }).optional(),
-  language: z.enum(['sq', 'en']).default('sq'),
+  isEasyMailIn: z.boolean().default(false)
 });
 
 export async function GET(request: NextRequest) {
@@ -68,19 +56,9 @@ export async function GET(request: NextRequest) {
               email: true,
             }
           },
-          timelineEntries: {
-            where: {
-              isVisible: true
-            },
+          timeline: {
             orderBy: {
               createdAt: 'desc'
-            }
-          },
-          assignedTechnician: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
             }
           }
         },
@@ -125,94 +103,43 @@ export async function POST(request: NextRequest) {
       deviceType, 
       deviceModel, 
       issueDescription, 
-      urgency, 
-      isEasyMailIn, 
-      estimatedValue,
-      shippingAddress,
-      language 
+      isEasyMailIn
     } = createRepairSchema.parse(body);
 
     // Generate repair number
     const repairCount = await prisma.repair.count();
-    const repairNumber = `PR-${new Date().getFullYear()}-${String(repairCount + 1).padStart(3, '0')}`;
+    const repairNumber = `REP-${new Date().getFullYear()}-${String(repairCount + 1).padStart(3, '0')}`;
 
-    // Create repair with transaction
-    const repair = await prisma.$transaction(async (tx) => {
-      // Create repair
-      const newRepair = await tx.repair.create({
-        data: {
-          repairNumber,
-          userId: (session.user as any)?.id,
-          deviceType,
-          deviceModel,
-          issueDescription,
-          urgency,
-          status: 'PENDING',
-          isEasyMailIn,
-          estimatedValue,
-          shippingAddress: shippingAddress ? JSON.stringify(shippingAddress) : null,
-          language,
-        }
-      });
-
-      // Create initial timeline entry
-      await tx.timelineEntry.create({
-        data: {
-          repairId: newRepair.id,
-          status: 'PENDING',
-          title: language === 'sq' ? 'Kërkesa e Riparimit e Krijuar' : 'Repair Request Created',
-          description: language === 'sq' 
-            ? 'Kërkesa juaj për riparim është regjistruar me sukses dhe është duke u shqyrtuar.'
-            : 'Your repair request has been successfully registered and is being reviewed.',
-          isVisible: true,
-          createdBy: (session.user as any)?.id,
-        }
-      });
-
-      // If EasyMail-In, create shipping timeline entry
-      if (isEasyMailIn) {
-        await tx.timelineEntry.create({
-          data: {
-            repairId: newRepair.id,
-            status: 'SHIPPING_ARRANGED',
-            title: language === 'sq' ? 'Transporti EasyMail-In' : 'EasyMail-In Shipping',
-            description: language === 'sq' 
-              ? 'Kuti transporti do të dërgohet në adresën tuaj brenda 24 orëve.'
-              : 'Shipping box will be sent to your address within 24 hours.',
-            isVisible: true,
-            createdBy: (session.user as any)?.id,
-          }
-        });
+    // Create repair
+    const repair = await prisma.repair.create({
+      data: {
+        repairNumber,
+        userId: (session.user as any)?.id,
+        deviceType,
+        deviceModel: deviceModel || '',
+        issueDescription,
+        status: 'RECEIVED',
+        isEasyMailIn
       }
-
-      return newRepair;
     });
 
     // Send email notification to customer
-    const emailTemplate = emailTemplates.repairUpdate(
-      repairNumber,
-      'PENDING',
-      language
-    );
-    
-    await sendEmail({
-      to: session.user.email!,
-      subject: emailTemplate.subject,
-      html: emailTemplate.html,
-    });
-
-    // Send Telegram notification to admins
-    // await sendTelegramNotification({
-    //   type: 'NEW_REPAIR',
-    //   data: {
-    //     repairNumber,
-    //     customerName: session.user.name,
-    //     deviceType,
-    //     urgency,
-    //     isEasyMailIn,
-    //     estimatedValue: estimatedValue || 0,
-    //   }
-    // });
+    try {
+      const emailTemplate = emailTemplates.repairUpdate(
+        repairNumber,
+        'RECEIVED',
+        'sq'
+      );
+      
+      await sendEmail({
+        to: session.user.email!,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
+    } catch (emailError) {
+      console.error('Failed to send email:', emailError);
+      // Don't fail the entire request if email fails
+    }
 
     // Fetch complete repair with relations
     const completeRepair = await prisma.repair.findUnique({
@@ -225,19 +152,9 @@ export async function POST(request: NextRequest) {
             email: true,
           }
         },
-        timelineEntries: {
-          where: {
-            isVisible: true
-          },
+        timeline: {
           orderBy: {
             createdAt: 'desc'
-          }
-        },
-        assignedTechnician: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
           }
         }
       }

@@ -6,19 +6,13 @@ import { authOptions } from '@/lib/auth';
 
 const createProductSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
-  nameEn: z.string().min(1, 'English name is required'),
+  nameAl: z.string().min(1, 'Albanian name is required'),
   description: z.string().min(1, 'Description is required'),
-  descriptionEn: z.string().min(1, 'English description is required'),
+  descriptionAl: z.string().min(1, 'Albanian description is required'),
   category: z.string().min(1, 'Category is required'),
   price: z.number().min(0, 'Price must be positive'),
-  salePrice: z.number().optional(),
-  stockQuantity: z.number().min(0, 'Stock quantity must be positive'),
-  sku: z.string().optional(),
-  images: z.array(z.string()).optional(),
-  specifications: z.array(z.string()).optional(),
-  specificationsEn: z.array(z.string()).optional(),
-  tags: z.array(z.string()).optional(),
-  featured: z.boolean().default(false),
+  image: z.string().optional(),
+  stock: z.number().min(0, 'Stock quantity must be positive').default(0),
   isActive: z.boolean().default(true)
 });
 
@@ -28,7 +22,6 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const category = searchParams.get('category');
-    const featured = searchParams.get('featured');
     const search = searchParams.get('search');
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
@@ -43,16 +36,12 @@ export async function GET(request: NextRequest) {
       where.category = category;
     }
 
-    if (featured === 'true') {
-      where.featured = true;
-    }
-
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { nameEn: { contains: search, mode: 'insensitive' } },
+        { nameAl: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-        { descriptionEn: { contains: search, mode: 'insensitive' } }
+        { descriptionAl: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -81,24 +70,17 @@ export async function GET(request: NextRequest) {
       products: products.map(product => ({
         id: product.id,
         name: product.name,
-        nameEn: product.nameEn,
+        nameAl: product.nameAl,
         description: product.description,
-        descriptionEn: product.descriptionEn,
+        descriptionAl: product.descriptionAl,
         category: product.category,
         price: product.price,
-        salePrice: product.salePrice,
-        stockQuantity: product.stockQuantity,
-        sku: product.sku,
-        images: product.images,
-        specifications: product.specifications,
-        specificationsEn: product.specificationsEn,
-        tags: product.tags,
-        featured: product.featured,
+        image: product.image,
+        stock: product.stock,
         isActive: product.isActive,
-        inStock: product.stockQuantity > 0,
+        inStock: product.stock > 0,
         orderCount: product._count.orderItems,
         reviewCount: product._count.reviews,
-        rating: product.averageRating,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt
       })),
@@ -129,23 +111,23 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const productData = createProductSchema.parse(body);
+    const validatedData = createProductSchema.parse(body);
 
-    // Generate SKU if not provided
-    if (!productData.sku) {
-      const categoryPrefix = productData.category.substring(0, 3).toUpperCase();
-      const timestamp = Date.now().toString().slice(-6);
-      productData.sku = `${categoryPrefix}-${timestamp}`;
-    }
+    // Ensure all required fields are present for Prisma
+    const productData = {
+      name: validatedData.name,
+      nameAl: validatedData.nameAl,
+      description: validatedData.description,
+      descriptionAl: validatedData.descriptionAl,
+      category: validatedData.category,
+      price: validatedData.price,
+      stock: validatedData.stock,
+      isActive: validatedData.isActive,
+      ...(validatedData.image && { image: validatedData.image })
+    };
 
     const product = await prisma.product.create({
-      data: {
-        ...productData,
-        images: productData.images || [],
-        specifications: productData.specifications || [],
-        specificationsEn: productData.specificationsEn || [],
-        tags: productData.tags || []
-      }
+      data: productData
     });
 
     return NextResponse.json({
@@ -187,11 +169,22 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const productData = createProductSchema.partial().parse(body);
+    
+    // Only use fields that are provided in the request
+    const updateData: any = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.nameAl !== undefined) updateData.nameAl = body.nameAl;
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.descriptionAl !== undefined) updateData.descriptionAl = body.descriptionAl;
+    if (body.category !== undefined) updateData.category = body.category;
+    if (body.price !== undefined) updateData.price = body.price;
+    if (body.image !== undefined) updateData.image = body.image;
+    if (body.stock !== undefined) updateData.stock = body.stock;
+    if (body.isActive !== undefined) updateData.isActive = body.isActive;
 
     const product = await prisma.product.update({
       where: { id: productId },
-      data: productData
+      data: updateData
     });
 
     return NextResponse.json({
@@ -201,14 +194,6 @@ export async function PUT(request: NextRequest) {
 
   } catch (error) {
     console.error('Update product error:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
