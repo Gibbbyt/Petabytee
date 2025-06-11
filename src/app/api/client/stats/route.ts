@@ -7,11 +7,12 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session || session.user.role !== 'CLIENT') {
+    const userRole = (session?.user as any)?.role;
+    if (!session || userRole !== 'CLIENT') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = (session.user as any)?.id;
 
     // Get client statistics
     const [

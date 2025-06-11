@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -53,7 +53,8 @@ export default function LoginPage() {
         // Get the session to check user role
         const session = await getSession();
         
-        if (session?.user?.role === 'ADMIN') {
+        const userRole = (session?.user as any)?.role;
+        if (userRole === 'ADMIN') {
           router.push('/admin');
         } else {
           router.push('/client');

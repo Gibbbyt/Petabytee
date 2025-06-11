@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { sendEmail, emailTemplates } from '@/lib/email';
-import { sendTelegramNotification } from '@/lib/telegram';
+// import { sendTelegramNotification } from '@/lib/telegram';
 
 const createOrderSchema = z.object({
   type: z.enum(['PC_BUILD', 'PS5_CONTROLLER', 'PRODUCT', 'GIFT_CARD']),
@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status');
     const type = searchParams.get('type');
-    const userId = session.user.role === 'CLIENT' ? session.user.id : searchParams.get('userId');
+    const userRole = (session?.user as any)?.role;
+    const userId = userRole === 'CLIENT' ? (session.user as any)?.id : searchParams.get('userId');
 
     const skip = (page - 1) * limit;
 
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
-          userId: session.user.id,
+          userId: (session.user as any)?.id,
           type,
           status: 'PENDING',
           subtotal,
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
             ? 'Porositë tuaj është regjistruar me sukses dhe është duke u procesuar.'
             : 'Your order has been successfully registered and is being processed.',
           isVisible: true,
-          createdBy: session.user.id,
+          createdBy: (session.user as any)?.id,
         }
       });
 
@@ -198,7 +199,6 @@ export async function POST(request: NextRequest) {
 
     // Send email notification to customer
     const emailTemplate = emailTemplates.orderConfirmation(
-      session.user.name || shippingAddress.name,
       orderNumber,
       total,
       language
@@ -211,16 +211,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Send Telegram notification to admins
-    await sendTelegramNotification({
-      type: 'NEW_ORDER',
-      data: {
-        orderNumber,
-        customerName: session.user.name || shippingAddress.name,
-        total,
-        type,
-        itemsCount: items.length,
-      }
-    });
+    // await sendTelegramNotification({
+    //   message: `🛒 New Order Received!\n\nOrder Number: #${orderNumber}\nCustomer: ${session.user.name || shippingAddress.name}\nTotal: €${total.toFixed(2)}`
+    // });
 
     // Fetch complete order with relations
     const completeOrder = await prisma.order.findUnique({

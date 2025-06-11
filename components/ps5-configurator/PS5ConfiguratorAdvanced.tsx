@@ -33,7 +33,7 @@ import {
 
 // PS5 Controller 3D Model Component
 function PS5Controller({ config }) {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Group>(null)
   
   useFrame((state, delta) => {
     if (meshRef.current) {
@@ -45,7 +45,7 @@ function PS5Controller({ config }) {
     <group ref={meshRef}>
       {/* Main Controller Body */}
       <mesh position={[0, 0, 0]}>
-        <roundedBoxGeometry args={[4, 2.5, 1, 0.2]} />
+        <boxGeometry args={[4, 2.5, 1]} />
         <meshStandardMaterial 
           color={config.bodyColor || '#ffffff'}
           metalness={config.finish === 'metallic' ? 0.8 : 0.1}
@@ -86,7 +86,7 @@ function PS5Controller({ config }) {
         <>
           <mesh position={[0, 0, 0.6]}>
             <boxGeometry args={[3.5, 0.1, 0.1]} />
-            <meshBasicMaterial 
+            <meshStandardMaterial 
               color={config.rgbColor || '#00f5ff'} 
               emissive={config.rgbColor || '#00f5ff'}
               emissiveIntensity={0.5}
@@ -104,7 +104,7 @@ function PS5Controller({ config }) {
       {config.pattern && config.pattern !== 'solid' && (
         <mesh position={[0, 0, 0.51]}>
           <planeGeometry args={[3.8, 2.3]} />
-          <meshBasicMaterial 
+          <meshStandardMaterial 
             color={config.patternColor || '#ff6b35'}
             transparent 
             opacity={0.3}

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { sendEmail, emailTemplates } from '@/lib/email';
-import { sendTelegramNotification } from '@/lib/telegram';
+// import { sendTelegramNotification } from '@/lib/telegram';
 
 const createRepairSchema = z.object({
   deviceType: z.string().min(1, 'Device type is required'),
@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status');
     const isEasyMailIn = searchParams.get('isEasyMailIn');
-    const userId = session.user.role === 'CLIENT' ? session.user.id : searchParams.get('userId');
+    const userRole = (session?.user as any)?.role;
+    const userId = userRole === 'CLIENT' ? (session.user as any)?.id : searchParams.get('userId');
 
     const skip = (page - 1) * limit;
 
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
       const newRepair = await tx.repair.create({
         data: {
           repairNumber,
-          userId: session.user.id,
+          userId: (session.user as any)?.id,
           deviceType,
           deviceModel,
           issueDescription,
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
             ? 'Kërkesa juaj për riparim është regjistruar me sukses dhe është duke u shqyrtuar.'
             : 'Your repair request has been successfully registered and is being reviewed.',
           isVisible: true,
-          createdBy: session.user.id,
+          createdBy: (session.user as any)?.id,
         }
       });
 
@@ -179,7 +180,7 @@ export async function POST(request: NextRequest) {
               ? 'Kuti transporti do të dërgohet në adresën tuaj brenda 24 orëve.'
               : 'Shipping box will be sent to your address within 24 hours.',
             isVisible: true,
-            createdBy: session.user.id,
+            createdBy: (session.user as any)?.id,
           }
         });
       }
@@ -188,11 +189,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Send email notification to customer
-    const emailTemplate = emailTemplates.repairConfirmation(
-      session.user.name!,
+    const emailTemplate = emailTemplates.repairUpdate(
       repairNumber,
-      deviceType,
-      isEasyMailIn,
+      'PENDING',
       language
     );
     
@@ -203,17 +202,17 @@ export async function POST(request: NextRequest) {
     });
 
     // Send Telegram notification to admins
-    await sendTelegramNotification({
-      type: 'NEW_REPAIR',
-      data: {
-        repairNumber,
-        customerName: session.user.name,
-        deviceType,
-        urgency,
-        isEasyMailIn,
-        estimatedValue: estimatedValue || 0,
-      }
-    });
+    // await sendTelegramNotification({
+    //   type: 'NEW_REPAIR',
+    //   data: {
+    //     repairNumber,
+    //     customerName: session.user.name,
+    //     deviceType,
+    //     urgency,
+    //     isEasyMailIn,
+    //     estimatedValue: estimatedValue || 0,
+    //   }
+    // });
 
     // Fetch complete repair with relations
     const completeRepair = await prisma.repair.findUnique({

@@ -54,7 +54,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'pc' or 'ps5'
-    const userId = session.user.role === 'ADMIN' ? searchParams.get('userId') : session.user.id;
+    const userRole = (session?.user as any)?.role;
+    const userId = userRole === 'ADMIN' ? searchParams.get('userId') : (session.user as any)?.id;
     const isPublic = searchParams.get('public') === 'true';
 
     if (type === 'pc') {
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
       const configuration = await prisma.pcConfiguration.create({
         data: {
           ...configData,
-          userId: session.user.id,
+          userId: (session.user as any)?.id,
           components: configData.components as any,
         }
       });
@@ -191,7 +192,7 @@ export async function POST(request: NextRequest) {
       const configuration = await prisma.ps5Configuration.create({
         data: {
           ...configData,
-          userId: session.user.id,
+          userId: (session.user as any)?.id,
           components: configData.components as any,
           colors: configData.colors as any,
           customizations: configData.customizations as any,
@@ -245,7 +246,7 @@ export async function PUT(request: NextRequest) {
       const configuration = await prisma.pcConfiguration.update({
         where: { 
           id: configId,
-          userId: session.user.id // Ensure user can only update their own configs
+          userId: (session.user as any)?.id // Ensure user can only update their own configs
         },
         data: {
           ...configData,
@@ -265,7 +266,7 @@ export async function PUT(request: NextRequest) {
       const configuration = await prisma.ps5Configuration.update({
         where: { 
           id: configId,
-          userId: session.user.id
+          userId: (session.user as any)?.id
         },
         data: {
           ...configData,
@@ -320,14 +321,14 @@ export async function DELETE(request: NextRequest) {
       await prisma.pcConfiguration.delete({
         where: { 
           id: configId,
-          userId: session.user.id
+          userId: (session.user as any)?.id
         }
       });
     } else if (type === 'ps5') {
       await prisma.ps5Configuration.delete({
         where: { 
           id: configId,
-          userId: session.user.id
+          userId: (session.user as any)?.id
         }
       });
     } else {

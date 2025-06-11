@@ -1,8 +1,8 @@
 'use client';
 
+import React, { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       return;
     }
 
-    if (session.user.role === 'ADMIN') {
+    const userRole = (session?.user as any)?.role;
+    if (userRole === 'ADMIN') {
       router.push('/admin');
       return;
     }
@@ -50,7 +51,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     );
   }
 
-  if (!session || session.user.role !== 'CLIENT') {
+  const userRole = (session?.user as any)?.role;
+  if (!session || userRole !== 'CLIENT') {
     return null;
   }
 
@@ -146,7 +148,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-gray-800">
-                {t.dashboard.welcome}, {session.user.name}!
+                {t.dashboard.welcome}, {session?.user?.name || 'User'}!
               </h2>
               <p className="text-gray-600">
                 {new Date().toLocaleDateString('sq-AL', {
@@ -172,10 +174,10 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-700">
-                    {session.user.name}
+                    {session?.user?.name || 'User'}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {session.user.email}
+                    {session?.user?.email || 'user@example.com'}
                   </p>
                 </div>
               </div>

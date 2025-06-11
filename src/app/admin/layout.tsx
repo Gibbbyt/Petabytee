@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -47,7 +48,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       return;
     }
 
-    if (session.user.role !== 'ADMIN') {
+    // Type assertion for user role since NextAuth doesn't include role by default
+    const userRole = (session.user as any)?.role;
+    if (userRole !== 'ADMIN') {
       router.push('/client');
       return;
     }
@@ -61,7 +64,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  if (!session || session.user.role !== 'ADMIN') {
+  // Type assertion for user role check
+  const userRole = (session?.user as any)?.role;
+  if (!session || userRole !== 'ADMIN') {
     return null;
   }
 
@@ -298,7 +303,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-700">
-                    {session.user.name}
+                    {session?.user?.name || 'Administrator'}
                   </p>
                   <p className="text-xs text-gray-500">
                     Administrator

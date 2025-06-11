@@ -255,11 +255,13 @@ export default function PCConfiguratorPage() {
                   {build.icon}
                 </span>
               </div>
-              <CardTitle className="text-center">{getBuildName(buildTemplates.find(b => b.id === selectedBuild) as PCBuild)}</CardTitle>
+              <CardTitle className="text-center">
+                {getBuildName(buildTemplates.find(b => b.id === selectedBuild) as any)}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 text-sm mb-4 text-center">
-                {getBuildDescription(buildTemplates.find(b => b.id === selectedBuild) as PCBuild)}
+                {getBuildDescription(buildTemplates.find(b => b.id === selectedBuild) as any)}
               </p>
               
               <div className="space-y-2 mb-4">

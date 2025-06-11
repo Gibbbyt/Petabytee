@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Calculate conversion rate (assuming 100 visits per order for demo)
-    const conversionRate = totalOrders > 0 ? ((totalOrders / (totalOrders * 100)) * 100).toFixed(1) : 0;
+    const conversionRate = totalOrders > 0 ? ((totalOrders / (totalOrders * 100)) * 100).toFixed(1) : '0';
 
     // Calculate average order value
     const averageOrderValue = totalOrders > 0 
