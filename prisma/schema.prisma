@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -72,6 +72,7 @@ model Product {
   pcComponents    PCComponent[]
   ps5Components   PS5Component[]
   reviews         Review[]
+  buildComponents PCBuildComponent[]
 }
 
 enum ProductCategory {
@@ -371,9 +372,9 @@ model Timeline {
   icon            String?
   createdAt       DateTime          @default(now())
   
-  // Relations
-  order           Order?            @relation(fields: [entityId], references: [id])
-  repair          Repair?           @relation(fields: [entityId], references: [id])
+  // Relations - Fixed with unique constraint names
+  order           Order?            @relation(fields: [entityId], references: [id], map: "Timeline_order_entityId_fkey")
+  repair          Repair?           @relation(fields: [entityId], references: [id], map: "Timeline_repair_entityId_fkey")
 }
 
 enum TimelineEntity {
